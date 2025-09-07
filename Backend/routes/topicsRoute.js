@@ -6,6 +6,7 @@ router.get('/:id', topicController.getTopic)
 router.get('/search/:key', topicController.searchTopic)
 router.post('/', topicController.createTopic)
 router.post('/delete/:id', topicController.deleteTopic)
-router.post('/update/:id', topicController.editTopic)
+router.post('/update/:id', topicController.editTopicId)
+router.put('/:id', topicController.editTopic)
 
 module.exports = router
