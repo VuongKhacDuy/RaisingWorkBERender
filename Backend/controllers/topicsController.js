@@ -50,6 +50,21 @@ module.exports = {
       res.status(500).json("failed to search the topic");
     }
   },
+    editTopic: async (req, res) => {
+      try {
+        const updatedTopic = await Topic.findByIdAndUpdate(
+          req.params.id,
+          req.body,
+          { new: true }
+        );
+        if (!updatedTopic) {
+          return res.status(404).json("Topic not found");
+        }
+        res.status(200).json({ message: "Topic updated successfully", topic: updatedTopic });
+      } catch (error) {
+        res.status(500).json("Failed to update the topic");
+      }
+    },
 
   deleteTopic: async (req, res) => {
     try {
