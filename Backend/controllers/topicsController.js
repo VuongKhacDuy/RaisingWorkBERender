@@ -71,7 +71,10 @@ module.exports = {
   deleteTopic: async (req, res) => {
     try {
       const deleteItem = await Topic.findByIdAndDelete(req.params.id);
-      res.status(200).json("Topic is deleted successfully", deleteItem);
+      if (!deleteItem) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.status(200).json({ message: "Topic is deleted successfully", topic: deleteItem });
     } catch (error) {
       res.status(500).json("failed to detele the topic");
     }
