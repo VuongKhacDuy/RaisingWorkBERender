@@ -1,4 +1,6 @@
 const dotenv = require("dotenv");
+const path = require("path");
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const mongoose = require("mongoose");
 
@@ -27,7 +29,6 @@ app.use(bodyParser.json({limit: '35mb'}));
 
 const jwt = require("jsonwebtoken");
 
-dotenv.config();
 mongoose
   .connect(process.env.MONGO_URL)
   .then(() => console.log("db connected"))
