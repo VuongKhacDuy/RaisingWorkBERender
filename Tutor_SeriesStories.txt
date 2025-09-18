@@ -1,0 +1,89 @@
+📋 Tổng quan tính năng Series Stories
+
+    1. Models (Database Schema)
+
+        SeriesModel.js: Schema cho câu truyện chính
+
+        Thông tin: title, description, author, genre, status, rating, tags
+        Theo dõi: totalEpisodes, createdAt, updatedAt
+        EpisodeModel.js: Schema cho từng tập truyện
+
+        Nội dung: episodeNumber, title, content, summary
+        Tương tác: readCount, likeCount, isPublished
+        Liên kết với Series thông qua seriesId
+
+    2. Controllers (Business Logic)
+
+        seriesController.js:
+
+        CRUD operations cho Series
+        Pagination cho danh sách
+        Tìm kiếm theo keyword
+        episodeController.js:
+
+        CRUD operations cho Episodes
+        Toggle publish/unpublish
+        Like episodes, đếm lượt đọc
+
+    3. Routes (API Endpoints)
+
+        Series Routes:
+
+            POST /api/series_stories/ - Tạo series mới
+            GET /api/series_stories/ - Lấy tất cả series (có pagination)
+            GET /api/series_stories/:id - Lấy series theo ID (kèm episodes)
+            PUT /api/series_stories/:id - Cập nhật series
+            DELETE /api/series_stories/:id - Xóa series
+            GET /api/series_stories/search/:keyword - Tìm kiếm series
+            
+        Episodes Routes:
+
+            POST /api/series_stories/episodes - Tạo episode mới
+            GET /api/series_stories/:seriesId/episodes - Lấy episodes theo series
+            GET /api/series_stories/episodes/:id - Lấy episode theo ID
+            PUT /api/series_stories/episodes/:id - Cập nhật episode
+            DELETE /api/series_stories/episodes/:id - Xóa episode
+            PATCH /api/series_stories/episodes/:id/publish - Toggle publish
+            POST /api/series_stories/episodes/:id/like - Like episode
+
+🎯 Cách sử dụng
+    1. Tạo Series mới:
+
+        POST /api/series_stories/
+        {
+        "title": "Tên câu truyện",
+        "description": "Mô tả",
+        "author": "Tác giả",
+        "genre": "Thể loại",
+        "tags": ["tag1", "tag2"]
+        }
+
+    2. Thêm Episode:
+        POST /api/series_stories/episodes
+        {
+        "seriesId": "ID_của_series",
+        "episodeNumber": 1,
+        "title": "Tập 1",
+        "content": "Nội dung tập 1...",
+        "isPublished": true
+        }
+
+📋 API Endpoints chính xác:
+
+    Series:
+
+        POST /api/series_stories/create_series
+        GET /api/series_stories/get_all_series
+        GET /api/series_stories/get_series_by/:id
+        PUT /api/series_stories/update_series/:id
+        DELETE /api/series_stories/delete_series/:id
+        GET /api/series_stories/search_series/:keyword
+
+    Episodes:
+
+        POST /api/series_stories/create_episode
+        GET /api/series_stories/get_all_episodes
+        GET /api/series_stories/get_episodes_by_series/:seriesId
+        GET /api/series_stories/get_episode_by/:id
+        PUT /api/series_stories/update_episode/:id
+        DELETE /api/series_stories/delete_episode/:id

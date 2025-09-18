@@ -1,0 +1,95 @@
+RaisingWorkBERender/
+├── .env                    # Biến môi trường (DB, PORT...)
+├── .gitignore             # Ignore files không cần commit
+├── README.md              # Tài liệu project
+└── Backend/               # Thư mục chính chứa source code
+    ├── index.js           # Entry point của ứng dụng
+    ├── package.json       # Dependencies và scripts
+    ├── controllers/       # Logic xử lý business
+    ├── models/           # Schema/Model cho MongoDB
+    ├── routes/           # Định nghĩa API endpoints
+    ├── middleware/       # Middleware functions
+    └── uploads/          # Thư mục chứa file upload
+
+
+📁 Chi tiết từng thành phần
+
+1. index.js - Main Server File
+    Vai trò: Entry point của ứng dụng
+    Chức năng:
+    Khởi tạo Express server
+    Kết nối MongoDB
+    Cấu hình middleware (CORS, body parser, JWT)
+    Định nghĩa routes cho /api/topics và /api/news
+    Xử lý authentication (register, login, email verification)
+    Server chạy trên port 3000
+
+2. models/ - Database Models
+    TopicModel.js:
+
+        Schema cho chủ đề học tập
+        Fields: imageUrl, title, subTitle, description, reference, numbLike, numbRead
+        Có vẻ là bài học/chủ đề từ vựng
+
+    user.js:
+
+        Schema người dùng
+        Fields: name, email, password, verified, verificationToken, profileImage
+        Hỗ trợ xác thực email
+
+    News/NewsModel.js: Model cho tin tức/bài báo
+
+    FavoriteWords/FavoriteWords.js: Model cho từ yêu thích của user
+
+3. controllers/ - Business Logic
+    topicsController.js:
+
+        createTopic: Tạo chủ đề mới
+        getAllTopics: Lấy tất cả chủ đề
+        getTopic: Lấy chủ đề theo ID
+        searchTopic: Tìm kiếm chủ đề (sử dụng MongoDB Atlas Search)
+        editTopic: Cập nhật chủ đề
+        deleteTopic: Xóa chủ đề
+        News/newsController.js: Xử lý tin tức
+
+    DailyMostSaved/dailyMostSavedWordsController.js: Xử lý từ được lưu nhiều nhất theo ngày
+
+4. routes/ - API Endpoints
+    topicsRoute.js:
+
+        GET / - Lấy tất cả topics
+        GET /:id - Lấy topic theo ID
+        GET /search/:key - Tìm kiếm topic
+        POST / - Tạo topic mới
+        POST /delete/:id - Xóa topic
+        PUT /:id - Cập nhật topic
+
+    newsRoute.js: Routes cho news
+
+5. middleware/
+    upload.js: Middleware xử lý upload file (sử dụng Multer)
+
+6. uploads/
+    Thư mục chứa các file được upload (ảnh, tài liệu)
+    Hiện có 2 file PNG
+
+🎯 Mục đích của ứng dụng
+
+    Dựa trên phân tích, đây là Backend cho ứng dụng học từ vựng tiếng Anh:
+
+    Quản lý chủ đề học: Users có thể xem, tạo, chỉnh sửa các chủ đề học tập
+    Hệ thống authentication: Đăng ký, đăng nhập, xác thực email
+    Quản lý từ yêu thích: Users có thể lưu từ yêu thích
+    Tin tức: Cung cấp tin tức liên quan đến học tập
+    Upload file: Hỗ trợ upload ảnh cho các bài học
+    Tìm kiếm: Tìm kiếm chủ đề với MongoDB Atlas Search
+
+🔧 Công nghệ sử dụng
+
+    Runtime: Node.js
+    Framework: Express.js
+    Database: MongoDB (với Mongoose ODM)
+    Authentication: JWT + Email verification
+    File Upload: Multer
+    Email: Nodemailer
+    Search: MongoDB Atlas Search
