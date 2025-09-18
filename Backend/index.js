@@ -14,7 +14,8 @@ const nodemailer = require("nodemailer");
 const app = express();
 const topicRouter = require('../Backend/routes/topicsRoute')
 const newsRouter = require('../Backend/routes/newsRoute')
-const seriesStoriesRouter = require('../Backend/routes/seriesStoriesRoute')
+const seriesStoriesRouter = require('../Backend/routes/seriesStoriesRoute');
+
 const port = 3000;
 
 // ADD THIS
@@ -42,7 +43,8 @@ app.use(express.urlencoded({limit: '10mb', extended: true}))
 
 app.use('/api/topics', topicRouter)
 app.use('/api/news', newsRouter)
-app.use('/api/series_stories', seriesStoriesRouter)
+
+app.use('/api/series_stories', seriesStoriesRouter);
 
 
 app.listen(process.env.PORT || port, () => console.log(`Example app listening on port ${process.env.PORT}!`));

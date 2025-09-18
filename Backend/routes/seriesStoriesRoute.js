@@ -46,4 +46,6 @@ router.patch('/toggle_publish_episode/:id', episodeController.togglePublishEpiso
 // Like episode
 router.post('/like_episode/:id', episodeController.likeEpisode);
 
+router.get('/test', (req, res) => res.send('ok'));
+
 module.exports = router;
