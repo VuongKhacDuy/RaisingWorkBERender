@@ -52,13 +52,16 @@ exports.uploadImage = async (req, res) => {
 // GET /get_image_series/:id (lấy theo id ảnh trong DB)
 exports.getImageById = async (req, res) => {
   try {
+    console.log('Getting image by ID:', req.params.id);
     const imageDoc = await ImageBase64.findById(req.params.id);
+    console.log('Found image doc:', imageDoc ? 'exists' : 'not found');
     if (!imageDoc) {
       return res.status(404).json({ success: false, message: 'Image not found' });
     }
     // Trả về base64
     res.json({ success: true, base64: imageDoc.base64, type: imageDoc.type, refId: imageDoc.refId, originalName: imageDoc.originalName });
   } catch (err) {
+    console.error('Error getting image:', err);
     res.status(500).json({ success: false, message: 'Get image failed', error: err.message });
   }
 };
