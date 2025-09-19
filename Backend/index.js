@@ -29,7 +29,11 @@ app.use(bodyParser.urlencoded({
 
 app.use(bodyParser.json({limit: '35mb'}));
 
+
 const jwt = require("jsonwebtoken");
+
+// Serve static files in uploads folder
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 mongoose
   .connect(process.env.MONGO_URL)
@@ -43,7 +47,7 @@ app.use(express.urlencoded({limit: '10mb', extended: true}))
 
 app.use('/api/topics', topicRouter)
 app.use('/api/news', newsRouter)
-app.use('/api/upload', uploadImageSeriesRoute);
+app.use('/api/upload/images', uploadImageSeriesRoute);
 app.use('/api/series_stories', seriesStoriesRouter);
 
 
