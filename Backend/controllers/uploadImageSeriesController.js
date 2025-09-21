@@ -66,3 +66,38 @@ exports.getImageById = async (req, res) => {
   }
 };
 
+// DELETE /delete_image/:id (xóa ảnh theo id)
+exports.deleteImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Deleting image by ID:', id);
+    
+    const deletedImage = await ImageBase64.findByIdAndDelete(id);
+    
+    if (!deletedImage) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Image not found' 
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Image deleted successfully',
+      deletedImage: {
+        _id: deletedImage._id,
+        type: deletedImage.type,
+        refId: deletedImage.refId,
+        originalName: deletedImage.originalName
+      }
+    });
+  } catch (err) {
+    console.error('Error deleting image:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Delete image failed', 
+      error: err.message 
+    });
+  }
+};
+
