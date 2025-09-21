@@ -14,9 +14,38 @@ const EpisodeSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  content: { 
+  // Dynamic content blocks
+  contentBlocks: [{
+    id: { type: String, required: true }, // unique ID cho mỗi block
+    type: { 
+      type: String, 
+      enum: ['text', 'heading', 'image', 'quote', 'divider'],
+      required: true 
+    },
+    order: { type: Number, required: true }, // thứ tự hiển thị
+    data: {
+      // For text block
+      text: { type: String },
+      
+      // For heading block  
+      level: { type: Number, enum: [1, 2, 3] }, // H1, H2, H3
+      
+      // For image block
+      imageId: { type: String }, // ID của ảnh trong ImageBase64
+      caption: { type: String },
+      
+      // For quote block
+      quote: { type: String },
+      author: { type: String }
+      
+      // divider block không cần data
+    }
+  }],
+  
+  // Backup content cũ (để migration)
+  legacyContent: { 
     type: String, 
-    required: true 
+    required: false 
   },
   summary: { 
     type: String, 

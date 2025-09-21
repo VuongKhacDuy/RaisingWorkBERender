@@ -16,6 +16,7 @@ const topicRouter = require('../Backend/routes/topicsRoute')
 const newsRouter = require('../Backend/routes/newsRoute')
 const seriesStoriesRouter = require('../Backend/routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('../Backend/routes/uploadImageSeriesRoute');
+const episodeRouter = require('../Backend/routes/episodeRoute');
 const port = 3000;
 
 // ADD THIS
@@ -49,6 +50,7 @@ app.use('/api/topics', topicRouter)
 app.use('/api/news', newsRouter)
 app.use('/api/upload/images', uploadImageSeriesRoute);
 app.use('/api/series_stories', seriesStoriesRouter);
+app.use('/api/episodes', episodeRouter);
 
 
 app.listen(process.env.PORT || port, () => console.log(`Example app listening on port ${process.env.PORT}!`));

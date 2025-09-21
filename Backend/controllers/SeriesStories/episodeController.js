@@ -1,5 +1,10 @@
 const Episode = require("../../models/SeriesStories/EpisodeModel");
 const Series = require("../../models/SeriesStories/SeriesModel");
+const { 
+  migrateLegacyContent, 
+  createDefaultContentBlocks,
+  validateContentBlock 
+} = require("../../utils/contentMigration");
 
 module.exports = {
   // Tạo episode mới
@@ -16,7 +21,21 @@ module.exports = {
         });
       }
 
-      const newEpisode = new Episode(req.body);
+      const episodeData = { ...req.body };
+      
+      // Nếu có content cũ (legacy), migrate sang content blocks
+      if (episodeData.content && !episodeData.contentBlocks) {
+        episodeData.contentBlocks = migrateLegacyContent(episodeData.content);
+        episodeData.legacyContent = episodeData.content;
+        delete episodeData.content;
+      }
+      
+      // Nếu không có content blocks, tạo default
+      if (!episodeData.contentBlocks || episodeData.contentBlocks.length === 0) {
+        episodeData.contentBlocks = createDefaultContentBlocks();
+      }
+
+      const newEpisode = new Episode(episodeData);
       await newEpisode.save();
 
       // Cập nhật totalEpisodes của series
@@ -259,6 +278,252 @@ module.exports = {
       res.status(500).json({
         success: false,
         message: "Failed to like episode",
+        error: error.message
+      });
+    }
+  },
+
+  // ===== DYNAMIC CONTENT BUILDER METHODS =====
+
+  // Cập nhật content blocks
+  updateContentBlocks: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { contentBlocks } = req.body;
+
+      // Validate contentBlocks
+      if (!Array.isArray(contentBlocks)) {
+        return res.status(400).json({
+          success: false,
+          message: "contentBlocks must be an array"
+        });
+      }
+
+      // Validate mỗi block
+      for (let i = 0; i < contentBlocks.length; i++) {
+        const block = contentBlocks[i];
+        if (!block.id || !block.type || block.order === undefined) {
+          return res.status(400).json({
+            success: false,
+            message: `Block at index ${i} missing required fields (id, type, order)`
+          });
+        }
+        
+        // Validate block type
+        const validTypes = ['text', 'heading', 'image', 'quote', 'divider'];
+        if (!validTypes.includes(block.type)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid block type: ${block.type}`
+          });
+        }
+      }
+
+      // Sắp xếp blocks theo order
+      contentBlocks.sort((a, b) => a.order - b.order);
+
+      const updatedEpisode = await Episode.findByIdAndUpdate(
+        id,
+        { contentBlocks },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedEpisode) {
+        return res.status(404).json({
+          success: false,
+          message: "Episode not found"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Content blocks updated successfully",
+        data: updatedEpisode
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to update content blocks",
+        error: error.message
+      });
+    }
+  },
+
+  // Thêm block mới
+  addContentBlock: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { block } = req.body;
+
+      // Validate block
+      if (!block.id || !block.type || block.order === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "Block missing required fields (id, type, order)"
+        });
+      }
+
+      const episode = await Episode.findById(id);
+      if (!episode) {
+        return res.status(404).json({
+          success: false,
+          message: "Episode not found"
+        });
+      }
+
+      // Thêm block mới
+      episode.contentBlocks.push(block);
+      
+      // Sắp xếp lại theo order
+      episode.contentBlocks.sort((a, b) => a.order - b.order);
+      
+      await episode.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Content block added successfully",
+        data: episode
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to add content block",
+        error: error.message
+      });
+    }
+  },
+
+  // Xóa block
+  deleteContentBlock: async (req, res) => {
+    try {
+      const { id, blockId } = req.params;
+
+      const episode = await Episode.findById(id);
+      if (!episode) {
+        return res.status(404).json({
+          success: false,
+          message: "Episode not found"
+        });
+      }
+
+      // Tìm và xóa block
+      const blockIndex = episode.contentBlocks.findIndex(block => block.id === blockId);
+      if (blockIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: "Content block not found"
+        });
+      }
+
+      // Không cho phép xóa nếu chỉ còn 1 block
+      if (episode.contentBlocks.length <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot delete the last content block"
+        });
+      }
+
+      episode.contentBlocks.splice(blockIndex, 1);
+      await episode.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Content block deleted successfully",
+        data: episode
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete content block",
+        error: error.message
+      });
+    }
+  },
+
+  // Di chuyển block (thay đổi order)
+  reorderContentBlocks: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { blockOrders } = req.body; // Array of {blockId, newOrder}
+
+      if (!Array.isArray(blockOrders)) {
+        return res.status(400).json({
+          success: false,
+          message: "blockOrders must be an array"
+        });
+      }
+
+      const episode = await Episode.findById(id);
+      if (!episode) {
+        return res.status(404).json({
+          success: false,
+          message: "Episode not found"
+        });
+      }
+
+      // Cập nhật order cho các blocks
+      blockOrders.forEach(({ blockId, newOrder }) => {
+        const block = episode.contentBlocks.find(b => b.id === blockId);
+        if (block) {
+          block.order = newOrder;
+        }
+      });
+
+      // Sắp xếp lại
+      episode.contentBlocks.sort((a, b) => a.order - b.order);
+      
+      await episode.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Content blocks reordered successfully",
+        data: episode
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to reorder content blocks",
+        error: error.message
+      });
+    }
+  },
+
+  // Migration: Convert legacy content to content blocks
+  migrateLegacyContentToBlocks: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const episode = await Episode.findById(id);
+      if (!episode) {
+        return res.status(404).json({
+          success: false,
+          message: "Episode not found"
+        });
+      }
+
+      // Kiểm tra xem đã có content blocks chưa
+      if (episode.contentBlocks && episode.contentBlocks.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Episode already has content blocks"
+        });
+      }
+
+      // Migrate từ legacy content hoặc tạo default
+      const legacyContent = episode.legacyContent || '';
+      episode.contentBlocks = migrateLegacyContent(legacyContent);
+      
+      await episode.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Legacy content migrated successfully",
+        data: episode
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to migrate legacy content",
         error: error.message
       });
     }
