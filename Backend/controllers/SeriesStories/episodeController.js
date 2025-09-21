@@ -1,5 +1,6 @@
 const Episode = require("../../models/SeriesStories/EpisodeModel");
 const Series = require("../../models/SeriesStories/SeriesModel");
+const ImageBase64 = require("../../models/ImageBase64");
 const { 
   migrateLegacyContent, 
   createDefaultContentBlocks,
@@ -200,16 +201,41 @@ module.exports = {
         });
       }
 
-      // Giảm totalEpisodes của series
+      // 1. Collect tất cả imageIds từ content blocks
+      const imageIdsToDelete = [];
+      if (episode.contentBlocks && Array.isArray(episode.contentBlocks)) {
+        episode.contentBlocks.forEach(block => {
+          if (block.type === 'image' && block.data && block.data.imageId) {
+            imageIdsToDelete.push(block.data.imageId);
+          }
+        });
+      }
+
+      // 2. Xóa ảnh của episode (theo refId)
+      await ImageBase64.deleteMany({ 
+        type: 'episode', 
+        refId: req.params.id 
+      });
+
+      // 3. Xóa ảnh trong content blocks (theo imageId)
+      if (imageIdsToDelete.length > 0) {
+        await ImageBase64.deleteMany({ 
+          _id: { $in: imageIdsToDelete } 
+        });
+      }
+
+      // 4. Giảm totalEpisodes của series
       await Series.findByIdAndUpdate(episode.seriesId, {
         $inc: { totalEpisodes: -1 }
       });
 
+      // 5. Xóa episode
       await Episode.findByIdAndDelete(req.params.id);
 
       res.status(200).json({
         success: true,
-        message: "Episode deleted successfully"
+        message: "Episode and related images deleted successfully",
+        deletedImageIds: imageIdsToDelete.length
       });
     } catch (error) {
       res.status(500).json({

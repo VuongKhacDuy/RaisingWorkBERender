@@ -1,5 +1,6 @@
 const Series = require("../../models/SeriesStories/SeriesModel");
 const Episode = require("../../models/SeriesStories/EpisodeModel");
+const ImageBase64 = require("../../models/ImageBase64");
 
 module.exports = {
   // Tạo series mới
@@ -132,15 +133,75 @@ module.exports = {
         });
       }
 
-      // Xóa tất cả episodes thuộc series này
+      // 1. Lấy tất cả episodes thuộc series này
+      const episodes = await Episode.find({ seriesId: req.params.id });
+      
+      // 2. Collect tất cả imageIds từ content blocks của episodes
+      const imageIdsToDelete = [];
+      episodes.forEach(episode => {
+        if (episode.contentBlocks && Array.isArray(episode.contentBlocks)) {
+          episode.contentBlocks.forEach(block => {
+            if (block.type === 'image' && block.data && block.data.imageId) {
+              imageIdsToDelete.push(block.data.imageId);
+            }
+          });
+        }
+      });
+
+      // 3. Xóa ảnh của series (theo refId)
+      const deletedSeriesImages = await ImageBase64.deleteMany({ 
+        type: 'series', 
+        refId: req.params.id 
+      });
+      console.log(`Deleted ${deletedSeriesImages.deletedCount} series images`);
+
+      // 4. Xóa ảnh của episodes (theo refId)
+      const episodeIds = episodes.map(ep => ep._id);
+      
+      // Xóa ảnh episode theo refId = episodeId
+      const deletedEpisodeImagesByEpisodeId = await ImageBase64.deleteMany({ 
+        type: 'episode', 
+        refId: { $in: episodeIds }
+      });
+      console.log(`Deleted ${deletedEpisodeImagesByEpisodeId.deletedCount} episode images by episodeId`);
+      
+      // Xóa ảnh episode theo refId = seriesId (trường hợp frontend truyền seriesId làm refId)
+      const deletedEpisodeImagesBySeriesId = await ImageBase64.deleteMany({ 
+        type: 'episode', 
+        refId: req.params.id 
+      });
+      console.log(`Deleted ${deletedEpisodeImagesBySeriesId.deletedCount} episode images by seriesId`);
+
+      // 5. Xóa ảnh trong content blocks (theo imageId)
+      let deletedContentImages = { deletedCount: 0 };
+      if (imageIdsToDelete.length > 0) {
+        console.log(`Deleting ${imageIdsToDelete.length} content block images:`, imageIdsToDelete);
+        deletedContentImages = await ImageBase64.deleteMany({ 
+          _id: { $in: imageIdsToDelete } 
+        });
+        console.log(`Deleted ${deletedContentImages.deletedCount} content block images`);
+      }
+      
+      console.log(`Total episodes found: ${episodes.length}`);
+      console.log(`Total imageIds in content blocks: ${imageIdsToDelete.length}`);
+
+      // 6. Xóa tất cả episodes thuộc series này
       await Episode.deleteMany({ seriesId: req.params.id });
       
-      // Xóa series
+      // 7. Xóa series
       await Series.findByIdAndDelete(req.params.id);
 
       res.status(200).json({
         success: true,
-        message: "Series and all episodes deleted successfully"
+        message: "Series, episodes and all related images deleted successfully",
+        deletedCounts: {
+          episodes: episodes.length,
+          seriesImages: deletedSeriesImages.deletedCount,
+          episodeImagesByEpisodeId: deletedEpisodeImagesByEpisodeId.deletedCount,
+          episodeImagesBySeriesId: deletedEpisodeImagesBySeriesId.deletedCount,
+          contentBlockImages: deletedContentImages.deletedCount,
+          totalImages: deletedSeriesImages.deletedCount + deletedEpisodeImagesByEpisodeId.deletedCount + deletedEpisodeImagesBySeriesId.deletedCount + deletedContentImages.deletedCount
+        }
       });
     } catch (error) {
       res.status(500).json({

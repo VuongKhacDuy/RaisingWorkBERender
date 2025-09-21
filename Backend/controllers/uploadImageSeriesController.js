@@ -16,11 +16,22 @@ const ImageBase64 = require('../models/ImageBase64');
 
 exports.uploadImage = async (req, res) => {
   try {
+    console.log('=== UPLOAD IMAGE DEBUG ===');
+    console.log('req.body:', req.body);
+    console.log('req.file:', req.file ? {
+      originalname: req.file.originalname,
+      size: req.file.size
+    } : null);
+    
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
+    
     const type = req.body.type;
-    const refId = req.body.id || null;
+    const refId = req.body.id || req.body.refId || null; // Thử cả 2 field
+    
+    console.log('Parsed - type:', type, 'refId:', refId);
+    
     if (!type) {
       return res.status(400).json({ success: false, message: 'Missing type' });
     }
@@ -36,6 +47,13 @@ exports.uploadImage = async (req, res) => {
       base64,
       originalName: req.file.originalname
     });
+    
+    console.log('Saving to DB:', {
+      type: imageDoc.type,
+      refId: imageDoc.refId,
+      originalName: imageDoc.originalName
+    });
+    
     await imageDoc.save();
     res.json({ success: true, image: {
       _id: imageDoc._id,
@@ -97,6 +115,71 @@ exports.deleteImage = async (req, res) => {
       success: false, 
       message: 'Delete image failed', 
       error: err.message 
+    });
+  }
+};
+
+// ===== IMAGE MANAGEMENT METHODS =====
+
+// Dọn dẹp ảnh mồ côi
+exports.cleanupOrphanedImages = async (req, res) => {
+  try {
+    const { cleanupOrphanedImages } = require('../utils/imageCleanup');
+    const result = await cleanupOrphanedImages();
+    
+    res.json({
+      success: true,
+      message: `Cleaned up ${result.orphanedCount} orphaned images`,
+      data: result
+    });
+  } catch (err) {
+    console.error('Error cleaning up images:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Cleanup failed',
+      error: err.message
+    });
+  }
+};
+
+// Thống kê ảnh
+exports.getImageStats = async (req, res) => {
+  try {
+    const { getImageStats } = require('../utils/imageCleanup');
+    const stats = await getImageStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (err) {
+    console.error('Error getting image stats:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Get stats failed',
+      error: err.message
+    });
+  }
+};
+
+// Tìm ảnh theo type và refId
+exports.findImagesByRef = async (req, res) => {
+  try {
+    const { type, refId } = req.params;
+    const { findImagesByRef } = require('../utils/imageCleanup');
+    const images = await findImagesByRef(type, refId);
+    
+    res.json({
+      success: true,
+      data: images,
+      count: images.length
+    });
+  } catch (err) {
+    console.error('Error finding images:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Find images failed',
+      error: err.message
     });
   }
 };

@@ -13,9 +13,16 @@ router.post('/', upload.single('image'), uploadImageSeriesController.uploadImage
 router.get('/get_image_series/:id', uploadImageSeriesController.getImageById);
 // Lấy ảnh theo type và refId (id của series/episode)
 router.get('/get_image_by_type_ref/:type/:refId', uploadImageSeriesController.getImageByTypeAndRef);
+
 // Xóa ảnh theo id
-// router.delete('/delete_image/:id', uploadImageSeriesController.deleteImage);
+router.delete('/delete_image/:id', uploadImageSeriesController.deleteImage);
 router.post('/delete_image/:id', uploadImageSeriesController.deleteImage); // Backup route với POST
+
+// Quản lý ảnh
+router.get('/cleanup_orphaned', uploadImageSeriesController.cleanupOrphanedImages);
+router.get('/image_stats', uploadImageSeriesController.getImageStats);
+router.get('/find_images/:type/:refId', uploadImageSeriesController.findImagesByRef);
+
 router.get('/test', (req, res) => res.send('upload ok'));
 
 module.exports = router;
