@@ -7,6 +7,23 @@ const {
   validateContentBlock 
 } = require("../../utils/contentMigration");
 
+const processContentBlocks = (contentBlocks) => {
+  if (!Array.isArray(contentBlocks)) return contentBlocks;
+  
+  return contentBlocks.map(block => {
+    if (block.content && block.type === 'text') {
+      return {
+        ...block,
+        data: {
+          ...block.data,
+          text: block.content
+        }
+      };
+    }
+    return block;
+  });
+};
+
 module.exports = {
   // Tạo episode mới
   createEpisode: async (req, res) => {
@@ -34,6 +51,11 @@ module.exports = {
       // Nếu không có content blocks, tạo default
       if (!episodeData.contentBlocks || episodeData.contentBlocks.length === 0) {
         episodeData.contentBlocks = createDefaultContentBlocks();
+      }
+
+      // Chuyển đổi content thành data.text cho các text blocks
+      if (episodeData.contentBlocks) {
+        episodeData.contentBlocks = processContentBlocks(episodeData.contentBlocks);
       }
 
       const newEpisode = new Episode(episodeData);
@@ -162,9 +184,15 @@ module.exports = {
   // Cập nhật episode
   updateEpisode: async (req, res) => {
     try {
+      const updateData = { ...req.body };
+      
+      if (updateData.contentBlocks) {
+        updateData.contentBlocks = processContentBlocks(updateData.contentBlocks);
+      }
+
       const updatedEpisode = await Episode.findByIdAndUpdate(
         req.params.id,
-        req.body,
+        updateData,
         { new: true, runValidators: true }
       );
 
@@ -348,9 +376,12 @@ module.exports = {
       // Sắp xếp blocks theo order
       contentBlocks.sort((a, b) => a.order - b.order);
 
+      // Chuyển đổi content thành data.text cho các text blocks
+      const processedContentBlocks = processContentBlocks(contentBlocks);
+
       const updatedEpisode = await Episode.findByIdAndUpdate(
         id,
-        { contentBlocks },
+        { contentBlocks: processedContentBlocks },
         { new: true, runValidators: true }
       );
 
