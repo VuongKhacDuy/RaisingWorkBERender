@@ -12,11 +12,11 @@ const nodemailer = require("nodemailer");
 
 
 const app = express();
-const topicRouter = require('../Backend/routes/topicsRoute')
-const newsRouter = require('../Backend/routes/newsRoute')
-const seriesStoriesRouter = require('../Backend/routes/seriesStoriesRoute');
-const uploadImageSeriesRoute = require('../Backend/routes/uploadImageSeriesRoute');
-const episodeRouter = require('../Backend/routes/episodeRoute');
+const topicRouter = require('./routes/topicsRoute')
+const newsRouter = require('./routes/newsRoute')
+const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
+const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
+const episodeRouter = require('./routes/episodeRoute');
 const port = 3000;
 
 // ADD THIS
