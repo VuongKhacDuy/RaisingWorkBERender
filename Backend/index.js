@@ -53,11 +53,15 @@ const jwt = require("jsonwebtoken");
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
+// Fallback MONGO_URL if env var not found
+const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://khongduocdau456:khongduocdau456@wordsrise.kvelvt0.mongodb.net/WordsRise';
+
 console.log('Attempting to connect to MongoDB...');
-console.log('Using MONGO_URL:', process.env.MONGO_URL);
+console.log('process.env.MONGO_URL:', process.env.MONGO_URL);
+console.log('Using MONGO_URL (with fallback):', MONGO_URL);
 
 mongoose
-  .connect(process.env.MONGO_URL)
+  .connect(MONGO_URL)
   .then(() => {
     console.log('✅ MongoDB connected successfully');
     console.log('Connected to database:', mongoose.connection.name);
