@@ -2,6 +2,22 @@ const dotenv = require("dotenv");
 const path = require("path");
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// ===== DEBUG ENVIRONMENT VARIABLES =====
+console.log('=== DEBUG ENVIRONMENT ===');
+console.log('Dotenv config path:', path.join(__dirname, '../.env'));
+console.log('Env vars with MONGO/PORT/NODE:', Object.keys(process.env).filter(key => 
+  key.includes('MONGO') || key.includes('PORT') || key.includes('NODE')
+));
+console.log('MONGO_URL exists:', 'MONGO_URL' in process.env);
+console.log('MONGO_URL type:', typeof process.env.MONGO_URL);
+console.log('MONGO_URL value:', process.env.MONGO_URL);
+console.log('MONGO_URL length:', process.env.MONGO_URL?.length);
+console.log('PORT:', process.env.PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Current working directory:', process.cwd());
+console.log('__dirname:', __dirname);
+console.log('========================');
+
 const mongoose = require("mongoose");
 
 const express = require("express");
@@ -36,10 +52,25 @@ const jwt = require("jsonwebtoken");
 // Serve static files in uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// ===== MONGODB CONNECTION WITH DEBUG =====
+console.log('Attempting to connect to MongoDB...');
+console.log('Using MONGO_URL:', process.env.MONGO_URL);
+
 mongoose
   .connect(process.env.MONGO_URL)
-  .then(() => console.log("db connected"))
-  .catch((err) => console.log(err));
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+    console.log('Connected to database:', mongoose.connection.name);
+    console.log('Connection host:', mongoose.connection.host);
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection failed:');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('MONGO_URL being used:', process.env.MONGO_URL);
+    console.error('MONGO_URL type:', typeof process.env.MONGO_URL);
+    process.exit(1);
+  });
 
 // app.get("/", (req, res) => res.send("Test React js backend!"));
 
@@ -53,7 +84,17 @@ app.use('/api/series_stories', seriesStoriesRouter);
 app.use('/api/episodes', episodeRouter);
 
 
-app.listen(process.env.PORT || port, () => console.log(`Example app listening on port ${process.env.PORT}!`));
+// ===== SERVER START WITH DEBUG =====
+const serverPort = process.env.PORT || port;
+console.log('Starting server...');
+console.log('Using PORT:', serverPort);
+console.log('Environment:', process.env.NODE_ENV);
+
+app.listen(serverPort, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${serverPort}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📍 URL: http://localhost:${serverPort}`);
+});
 
 
 
