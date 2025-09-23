@@ -6,7 +6,7 @@ exports.getImageByTypeAndRef = async (req, res) => {
     if (!imageDoc) {
       return res.status(404).json({ success: false, message: 'Image not found' });
     }
-    res.json({ success: true, base64: imageDoc.base64, type: imageDoc.type, refId: imageDoc.refId, originalName: imageDoc.originalName });
+    res.json({ success: true, base64: imageDoc.base64, type: imageDoc.type, refId: imageDoc.refId, refIdEpisode: imageDoc.refIdEpisode, originalName: imageDoc.originalName });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Get image failed', error: err.message });
   }
@@ -29,8 +29,9 @@ exports.uploadImage = async (req, res) => {
     
     const type = req.body.type;
     const refId = req.body.id || req.body.refId || null; // Thử cả 2 field
+    const refIdEpisode = req.body.episodeId || null; // ID của episode cho content block
     
-    console.log('Parsed - type:', type, 'refId:', refId);
+    console.log('Parsed - type:', type, 'refId:', refId, 'refIdEpisode:', refIdEpisode);
     
     if (!type) {
       return res.status(400).json({ success: false, message: 'Missing type' });
@@ -44,6 +45,7 @@ exports.uploadImage = async (req, res) => {
     const imageDoc = new ImageBase64({
       type,
       refId,
+      refIdEpisode,
       base64,
       originalName: req.file.originalname
     });
@@ -51,6 +53,7 @@ exports.uploadImage = async (req, res) => {
     console.log('Saving to DB:', {
       type: imageDoc.type,
       refId: imageDoc.refId,
+      refIdEpisode: imageDoc.refIdEpisode,
       originalName: imageDoc.originalName
     });
     
@@ -59,6 +62,7 @@ exports.uploadImage = async (req, res) => {
       _id: imageDoc._id,
       type: imageDoc.type,
       refId: imageDoc.refId,
+      refIdEpisode: imageDoc.refIdEpisode,
       originalName: imageDoc.originalName,
       base64: imageDoc.base64
     }});
@@ -77,7 +81,7 @@ exports.getImageById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Image not found' });
     }
     // Trả về base64
-    res.json({ success: true, base64: imageDoc.base64, type: imageDoc.type, refId: imageDoc.refId, originalName: imageDoc.originalName });
+    res.json({ success: true, base64: imageDoc.base64, type: imageDoc.type, refId: imageDoc.refId, refIdEpisode: imageDoc.refIdEpisode, originalName: imageDoc.originalName });
   } catch (err) {
     console.error('Error getting image:', err);
     res.status(500).json({ success: false, message: 'Get image failed', error: err.message });
@@ -106,6 +110,7 @@ exports.deleteImage = async (req, res) => {
         _id: deletedImage._id,
         type: deletedImage.type,
         refId: deletedImage.refId,
+        refIdEpisode: deletedImage.refIdEpisode,
         originalName: deletedImage.originalName
       }
     });
@@ -179,6 +184,72 @@ exports.findImagesByRef = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Find images failed',
+      error: err.message
+    });
+  }
+};
+
+// Tìm ảnh theo episodeId (cho content blocks)
+exports.findImagesByEpisodeId = async (req, res) => {
+  try {
+    const { episodeId } = req.params;
+    
+    // Tìm ảnh có refIdEpisode = episodeId
+    const images = await ImageBase64.find({ refIdEpisode: episodeId });
+    
+    res.json({
+      success: true,
+      data: images,
+      count: images.length,
+      message: `Found ${images.length} images for episode ${episodeId}`
+    });
+  } catch (err) {
+    console.error('Error finding images by episode:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Find images by episode failed',
+      error: err.message
+    });
+  }
+};
+
+// Cập nhật refIdEpisode cho các ảnh (sau khi episode được tạo)
+exports.updateImageRefIdEpisode = async (req, res) => {
+  try {
+    const { imageIds, episodeId } = req.body;
+    
+    if (!Array.isArray(imageIds) || !episodeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'imageIds must be an array and episodeId is required'
+      });
+    }
+    
+    console.log(`Updating ${imageIds.length} images with refIdEpisode: ${episodeId}`);
+    
+    // Cập nhật refIdEpisode cho các ảnh
+    const result = await ImageBase64.updateMany(
+      { _id: { $in: imageIds } },
+      { $set: { refIdEpisode: episodeId } }
+    );
+    
+    console.log(`Updated ${result.modifiedCount} images`);
+    
+    res.json({
+      success: true,
+      message: `Updated ${result.modifiedCount} images with episode ID`,
+      data: {
+        matchedCount: result.matchedCount,
+        modifiedCount: result.modifiedCount,
+        episodeId: episodeId,
+        imageIds: imageIds
+      }
+    });
+  } catch (err) {
+    console.error('Error updating image refIdEpisode:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Update image refIdEpisode failed',
       error: err.message
     });
   }

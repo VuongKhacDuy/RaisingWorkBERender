@@ -171,6 +171,12 @@ module.exports = {
         refId: req.params.id 
       });
       console.log(`Deleted ${deletedEpisodeImagesBySeriesId.deletedCount} episode images by seriesId`);
+      
+      // Xóa ảnh content blocks theo refIdEpisode (trường hợp mới)
+      const deletedContentImagesByEpisodeId = await ImageBase64.deleteMany({ 
+        refIdEpisode: { $in: episodeIds }
+      });
+      console.log(`Deleted ${deletedContentImagesByEpisodeId.deletedCount} content block images by refIdEpisode`);
 
       // 5. Xóa ảnh trong content blocks (theo imageId)
       let deletedContentImages = { deletedCount: 0 };
@@ -200,7 +206,8 @@ module.exports = {
           episodeImagesByEpisodeId: deletedEpisodeImagesByEpisodeId.deletedCount,
           episodeImagesBySeriesId: deletedEpisodeImagesBySeriesId.deletedCount,
           contentBlockImages: deletedContentImages.deletedCount,
-          totalImages: deletedSeriesImages.deletedCount + deletedEpisodeImagesByEpisodeId.deletedCount + deletedEpisodeImagesBySeriesId.deletedCount + deletedContentImages.deletedCount
+          contentBlockImagesByEpisodeId: deletedContentImagesByEpisodeId.deletedCount,
+          totalImages: deletedSeriesImages.deletedCount + deletedEpisodeImagesByEpisodeId.deletedCount + deletedEpisodeImagesBySeriesId.deletedCount + deletedContentImages.deletedCount + deletedContentImagesByEpisodeId.deletedCount
         }
       });
     } catch (error) {

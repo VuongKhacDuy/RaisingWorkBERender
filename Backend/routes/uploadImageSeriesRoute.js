@@ -23,6 +23,13 @@ router.get('/cleanup_orphaned', uploadImageSeriesController.cleanupOrphanedImage
 router.get('/image_stats', uploadImageSeriesController.getImageStats);
 router.get('/find_images/:type/:refId', uploadImageSeriesController.findImagesByRef);
 
+// Tìm ảnh theo episodeId
+router.get('/find_images_by_episode/:episodeId', uploadImageSeriesController.findImagesByEpisodeId);
+
+// Cập nhật refIdEpisode cho các ảnh
+router.post('/update_image_ref_episode', uploadImageSeriesController.updateImageRefIdEpisode);
+router.put('/update_image_ref_episode', uploadImageSeriesController.updateImageRefIdEpisode); // Backup với PUT
+
 router.get('/test', (req, res) => res.send('upload ok'));
 
 module.exports = router;

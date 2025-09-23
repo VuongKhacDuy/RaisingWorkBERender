@@ -66,11 +66,65 @@ module.exports = {
         $inc: { totalEpisodes: 1 }
       });
 
-      res.status(201).json({
-        success: true,
-        message: "Episode created successfully",
-        data: newEpisode
-      });
+      // Tự động cập nhật refIdEpisode cho các ảnh trong contentBlocks
+      console.log('=== DEBUG: Checking contentBlocks for images ===');
+      console.log('Episode ID:', newEpisode._id);
+      console.log('ContentBlocks:', JSON.stringify(newEpisode.contentBlocks, null, 2));
+      
+      if (newEpisode.contentBlocks && Array.isArray(newEpisode.contentBlocks)) {
+        const imageIds = [];
+        newEpisode.contentBlocks.forEach((block, index) => {
+          console.log(`Block ${index}:`, JSON.stringify(block, null, 2));
+          if (block.type === 'image' && block.data && block.data.imageId) {
+            console.log(`Found image in block ${index}, imageId:`, block.data.imageId);
+            imageIds.push(block.data.imageId);
+          }
+        });
+
+        console.log('Collected imageIds:', imageIds);
+
+        if (imageIds.length > 0) {
+          console.log(`Updating ${imageIds.length} images with episodeId: ${newEpisode._id}`);
+          const updateResult = await ImageBase64.updateMany(
+            { _id: { $in: imageIds } },
+            { $set: { refIdEpisode: newEpisode._id } }
+          );
+          console.log('Update result:', updateResult);
+          console.log(`Updated refIdEpisode for ${updateResult.modifiedCount} images`);
+          
+          // Cập nhật lại episode với thông tin mới nhất và populate thông tin ảnh
+          const updatedEpisode = await Episode.findById(newEpisode._id);
+          
+          // Lấy thông tin chi tiết các ảnh đã được cập nhật để trả về frontend
+          const updatedImages = await ImageBase64.find({ 
+            _id: { $in: imageIds } 
+          }).select('_id refIdEpisode originalName type');
+          
+          console.log('Updated images info:', updatedImages);
+          
+          res.status(201).json({
+            success: true,
+            message: "Episode created successfully",
+            data: updatedEpisode,
+            imagesUpdated: updateResult.modifiedCount,
+            updatedImageDetails: updatedImages
+          });
+        } else {
+          console.log('No image blocks found in contentBlocks');
+          res.status(201).json({
+            success: true,
+            message: "Episode created successfully",
+            data: newEpisode
+          });
+        }
+      } else {
+        console.log('No contentBlocks or contentBlocks is not an array');
+        res.status(201).json({
+          success: true,
+          message: "Episode created successfully",
+          data: newEpisode
+        });
+      }
     } catch (error) {
       res.status(500).json({
         success: false,
@@ -201,6 +255,37 @@ module.exports = {
           success: false,
           message: "Episode not found"
         });
+      }
+
+      // Cập nhật refIdEpisode cho các ảnh mới trong contentBlocks
+      console.log('=== DEBUG UPDATE: Checking contentBlocks for images ===');
+      console.log('Episode ID:', req.params.id);
+      console.log('UpdateData contentBlocks:', JSON.stringify(updateData.contentBlocks, null, 2));
+      
+      if (updateData.contentBlocks && Array.isArray(updateData.contentBlocks)) {
+        const imageIds = [];
+        updateData.contentBlocks.forEach((block, index) => {
+          console.log(`Update Block ${index}:`, JSON.stringify(block, null, 2));
+          if (block.type === 'image' && block.data && block.data.imageId) {
+            console.log(`Found image in update block ${index}, imageId:`, block.data.imageId);
+            imageIds.push(block.data.imageId);
+          }
+        });
+
+        console.log('Collected imageIds for update:', imageIds);
+
+        if (imageIds.length > 0) {
+          console.log(`Updating ${imageIds.length} images with episodeId: ${req.params.id}`);
+          const updateResult = await ImageBase64.updateMany(
+            { _id: { $in: imageIds } },
+            { $set: { refIdEpisode: req.params.id } }
+          );
+          console.log('Update result:', updateResult);
+        } else {
+          console.log('No image blocks found in update contentBlocks');
+        }
+      } else {
+        console.log('No update contentBlocks or contentBlocks is not an array');
       }
 
       res.status(200).json({
