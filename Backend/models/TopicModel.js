@@ -6,6 +6,7 @@ const TopicSchema = new mongoose.Schema({
   subTitle: {type: String, require: false},
   description: { type: String, require: true },
   reference: { type: String, require: true },
+  videoUrl: { type: String, required: false },
   createAt: { type: Date, default: Date.now },
   numbLike: {type: Number, default: 0},
   numbRead: {type: Number, defaul: 0}

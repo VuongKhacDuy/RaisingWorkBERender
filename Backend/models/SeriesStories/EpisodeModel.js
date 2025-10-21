@@ -47,6 +47,10 @@ const EpisodeSchema = new mongoose.Schema({
     type: String, 
     required: false 
   },
+  videoUrl: { 
+    type: String, 
+    required: false 
+  },
   summary: { 
     type: String, 
     required: false 
