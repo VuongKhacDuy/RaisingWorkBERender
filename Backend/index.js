@@ -34,6 +34,7 @@ const newsRouter = require('./routes/newsRoute')
 const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
 const episodeRouter = require('./routes/episodeRoute');
+const favoriteWordsRouter = require('./routes/favoriteWordsRoute');
 const port = 3000;
 
 // ADD THIS
@@ -88,6 +89,7 @@ app.use('/api/upload/images', uploadImageSeriesRoute);
 app.use('/api/series_stories', seriesStoriesRouter);
 app.use('/api/episodes', episodeRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/favorite-words', favoriteWordsRouter);
 
 
 // ===== SERVER START WITH DEBUG =====
