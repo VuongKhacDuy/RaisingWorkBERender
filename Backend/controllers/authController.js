@@ -54,11 +54,13 @@ const registerUser = async (req, res) => {
 
         await newUser.save();
 
-        await sendVerificationEmail(newUser.email, newUser.verificationToken);
-
+        // Respond immediately — do not wait for email
         res.status(201).json({
             message: "Registration successful. Please check your email for verification",
         });
+
+        // Send verification email in background (non-blocking)
+        sendVerificationEmail(newUser.email, newUser.verificationToken);
     } catch (error) {
         console.log("Error registering user", error);
         res.status(500).json({ message: "Registration failed" });
