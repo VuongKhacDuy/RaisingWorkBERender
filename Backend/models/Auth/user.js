@@ -3,18 +3,18 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    require: true,
+    required: true,
   },
 
   email: {
     type: String,
-    require: true,
+    required: true,
     unique: true,
   },
 
   password: {
     type: String,
-    require: true,
+    required: true,
   },
 
   verified: {
@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
 
   verificationToken: String,
   profileImage: String,
-  
+
   userDescription: {
     type: String,
     default: null,
