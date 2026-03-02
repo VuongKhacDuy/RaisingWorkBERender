@@ -52,7 +52,9 @@ const registerUser = async (req, res) => {
 
         newUser.verificationToken = crypto.randomBytes(20).toString("hex");
 
+        console.log(`Registration attempt for email: ${email}`);
         await newUser.save();
+        console.log(`User saved successfully: ${email}`);
 
         // Respond immediately — do not wait for email
         res.status(201).json({
@@ -88,16 +90,19 @@ const verifyEmail = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-
+        console.log(`Login attempt for email: ${email}`);
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            console.log(`Login failed: User not found for ${email}`);
+            return res.status(401).json({ message: "User not found" });
         }
 
         // Compare hashed password
         const isPasswordValid = await bcrypt.compare(password, user.password);
+        console.log(`Password check for ${email}: ${isPasswordValid ? 'SUCCESS' : 'FAILURE'}`);
+
         if (!isPasswordValid) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Invalid password" });
         }
 
         const token = jwt.sign({ userId: user._id }, secretKey);

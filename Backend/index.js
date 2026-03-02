@@ -35,6 +35,7 @@ const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
 const episodeRouter = require('./routes/episodeRoute');
 const favoriteWordsRouter = require('./routes/favoriteWordsRoute');
+const testRouter = require('./routes/testRoute');
 const port = 3000;
 
 // ADD THIS
@@ -54,6 +55,18 @@ const jwt = require("jsonwebtoken");
 // Serve static files in uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
+
+app.use('/api/topics', topicRouter)
+app.use('/api/news', newsRouter)
+app.use('/api/upload/images', uploadImageSeriesRoute);
+app.use('/api/series_stories', seriesStoriesRouter);
+app.use('/api/episodes', episodeRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/favorite-words', favoriteWordsRouter);
+app.use('/api/test', testRouter);
+
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
 const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://khongduocdau456:khongduocdau456@wordsrise.kvelvt0.mongodb.net/WordsRise';
@@ -68,39 +81,21 @@ mongoose
     console.log('✅ MongoDB connected successfully');
     console.log('Connected to database:', mongoose.connection.name);
     console.log('Connection host:', mongoose.connection.host);
+
+    // ===== SERVER START =====
+    const serverPort = process.env.PORT || port;
+    console.log('Starting server...');
+    console.log('Using PORT:', serverPort);
+
+    app.listen(serverPort, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${serverPort}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📍 URL: http://localhost:${serverPort}`);
+    });
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:');
     console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    console.error('MONGO_URL being used:', process.env.MONGO_URL);
-    console.error('MONGO_URL type:', typeof process.env.MONGO_URL);
     process.exit(1);
   });
-
-// app.get("/", (req, res) => res.send("Test React js backend!"));
-
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ limit: '10mb', extended: true }))
-
-app.use('/api/topics', topicRouter)
-app.use('/api/news', newsRouter)
-app.use('/api/upload/images', uploadImageSeriesRoute);
-app.use('/api/series_stories', seriesStoriesRouter);
-app.use('/api/episodes', episodeRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/favorite-words', favoriteWordsRouter);
-
-
-// ===== SERVER START WITH DEBUG =====
-const serverPort = process.env.PORT || port;
-console.log('Starting server...');
-console.log('Using PORT:', serverPort);
-console.log('Environment:', process.env.NODE_ENV);
-
-app.listen(serverPort, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${serverPort}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-  console.log(`📍 URL: http://localhost:${serverPort}`);
-});
 
