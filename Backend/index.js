@@ -37,6 +37,8 @@ const episodeRouter = require('./routes/episodeRoute');
 const favoriteWordsRouter = require('./routes/favoriteWordsRoute');
 const achievementRouter = require('./routes/achievementRoute');
 const gameStatisticsRouter = require('./routes/gameStatisticsRoute');
+const userProgressRouter = require('./routes/userProgressRoute');
+const dailyMissionRouter = require('./routes/dailyMissionRoute');
 const testRouter = require('./routes/testRoute');
 const port = 3000;
 
@@ -69,6 +71,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/favorite-words', favoriteWordsRouter);
 app.use('/api/achievements', achievementRouter);
 app.use('/api/game-statistics', gameStatisticsRouter);
+app.use('/api/user-progress', userProgressRouter);
+app.use('/api/daily-missions', dailyMissionRouter);
 app.use('/api/test', testRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
