@@ -138,9 +138,17 @@ const syncFavoriteWords = async (req, res) => {
             await FavoriteWord.bulkWrite(bulkOps);
         }
 
+        // Delete any words in the DB that are not present in the payload
+        const wordsInPayload = words.map(w => w.word.trim());
+        const deleteResult = await FavoriteWord.deleteMany({
+            userId,
+            word: { $nin: wordsInPayload }
+        });
+
         res.status(200).json({
             message: "Favorite words synced successfully.",
             syncedCount: bulkOps.length,
+            deletedCount: deleteResult.deletedCount,
         });
     } catch (error) {
         console.error("Error syncing favorite words:", error);

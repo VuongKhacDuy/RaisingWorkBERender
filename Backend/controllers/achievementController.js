@@ -34,9 +34,16 @@ const syncAchievements = async (req, res) => {
             await Achievement.bulkWrite(bulkOps);
         }
 
+        const idsInPayload = achievements.map(ach => ach.id);
+        const deleteResult = await Achievement.deleteMany({
+            userId,
+            achievementId: { $nin: idsInPayload }
+        });
+
         res.status(200).json({
             message: "Achievements synced successfully.",
             syncedCount: bulkOps.length,
+            deletedCount: deleteResult.deletedCount,
         });
     } catch (error) {
         console.error("Error syncing achievements:", error);

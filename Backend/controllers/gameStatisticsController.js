@@ -35,9 +35,16 @@ const syncGameStatistics = async (req, res) => {
             await GameStatistics.bulkWrite(bulkOps);
         }
 
+        const modesInPayload = statistics.map(stat => stat.gameMode);
+        const deleteResult = await GameStatistics.deleteMany({
+            userId,
+            gameMode: { $nin: modesInPayload }
+        });
+
         res.status(200).json({
             message: "Game statistics synced successfully.",
             syncedCount: bulkOps.length,
+            deletedCount: deleteResult.deletedCount,
         });
     } catch (error) {
         console.error("Error syncing game statistics:", error);
