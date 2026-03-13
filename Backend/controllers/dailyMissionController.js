@@ -47,13 +47,6 @@ const syncDailyMissions = async (req, res) => {
             await DailyMission.bulkWrite(bulkOps);
         }
 
-        // Xoá các mission cũ không còn tồn tại trong payload
-        const idsInPayload = missions.map((m) => m.id);
-        const deleteResult = await DailyMission.deleteMany({
-            userId,
-            missionId: { $nin: idsInPayload }
-        });
-
         res.status(200).json({
             message: 'Daily missions synced.',
             syncedCount: bulkOps.length,
