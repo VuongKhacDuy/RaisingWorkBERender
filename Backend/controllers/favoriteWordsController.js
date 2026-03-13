@@ -105,4 +105,47 @@ const removeFavoriteWord = async (req, res) => {
     }
 };
 
-module.exports = { addFavoriteWord, getFavoriteWords, updateFavoriteWord, removeFavoriteWord };
+// POST /api/favorite-words/sync — Sync multiple favorite words from the app
+const syncFavoriteWords = async (req, res) => {
+    try {
+        const { words } = req.body; // Array of favorite words
+
+        if (!Array.isArray(words)) {
+            return res.status(400).json({ message: "Invalid payload formatting. Expected an array of words." });
+        }
+
+        const userId = req.userId;
+        const bulkOps = words.map((w) => ({
+            updateOne: {
+                filter: { userId, word: w.word.trim() },
+                update: {
+                    $set: {
+                        meaning: w.meaning || null,
+                        sentence1: w.sentence1 || null,
+                        sentence2: w.sentence2 || null,
+                        proficiencyLevel: w.proficiencyLevel ?? 0,
+                        lastReviewDate: w.lastReviewDate || null,
+                        source: w.source || "manual",
+                        wordId: w.wordId || null,
+                        dateCreated: w.dateCreated || new Date(),
+                    }
+                },
+                upsert: true
+            }
+        }));
+
+        if (bulkOps.length > 0) {
+            await FavoriteWord.bulkWrite(bulkOps);
+        }
+
+        res.status(200).json({
+            message: "Favorite words synced successfully.",
+            syncedCount: bulkOps.length,
+        });
+    } catch (error) {
+        console.error("Error syncing favorite words:", error);
+        res.status(500).json({ message: "Failed to sync favorite words." });
+    }
+};
+
+module.exports = { addFavoriteWord, getFavoriteWords, updateFavoriteWord, removeFavoriteWord, syncFavoriteWords };

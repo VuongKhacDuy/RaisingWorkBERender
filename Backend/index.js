@@ -35,6 +35,8 @@ const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
 const episodeRouter = require('./routes/episodeRoute');
 const favoriteWordsRouter = require('./routes/favoriteWordsRoute');
+const achievementRouter = require('./routes/achievementRoute');
+const gameStatisticsRouter = require('./routes/gameStatisticsRoute');
 const testRouter = require('./routes/testRoute');
 const port = 3000;
 
@@ -65,6 +67,8 @@ app.use('/api/series_stories', seriesStoriesRouter);
 app.use('/api/episodes', episodeRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/favorite-words', favoriteWordsRouter);
+app.use('/api/achievements', achievementRouter);
+app.use('/api/game-statistics', gameStatisticsRouter);
 app.use('/api/test', testRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====

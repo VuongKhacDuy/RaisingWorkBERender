@@ -6,9 +6,11 @@ const {
     getFavoriteWords,
     updateFavoriteWord,
     removeFavoriteWord,
+    syncFavoriteWords,
 } = require("../controllers/favoriteWordsController");
 
 // All routes require a valid JWT token
+router.post("/sync", authenticate, syncFavoriteWords);
 router.post("/", authenticate, addFavoriteWord);
 router.get("/", authenticate, getFavoriteWords);
 router.put("/:wordId", authenticate, updateFavoriteWord);
