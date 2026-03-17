@@ -49,8 +49,7 @@ const syncDailyMissions = async (req, res) => {
 
         res.status(200).json({
             message: 'Daily missions synced.',
-            syncedCount: bulkOps.length,
-            deletedCount: deleteResult.deletedCount
+            syncedCount: bulkOps.length
         });
     } catch (error) {
         console.error('Error syncing daily missions:', error);
