@@ -3,16 +3,49 @@ const MissionPool = require('../models/User/MissionPoolModel');
 const mongoose = require('mongoose');
 
 const defaultPool = [
-    { title: "Word Collector I", desc: "Add 5 words to favorites", type: "learnWords", baseTarget: 5, difficulty: "Easy", xpReward: 50, coinReward: 20 },
-    { title: "Word Master II", desc: "Add 10 words to favorites", type: "learnWords", baseTarget: 10, difficulty: "Medium", xpReward: 100, coinReward: 50 },
-    { title: "Vocabulary Guru", desc: "Add 20 words to favorites", type: "learnWords", baseTarget: 20, difficulty: "Hard", xpReward: 250, coinReward: 100 },
-    { title: "Quick Learner", desc: "Complete 2 mini-games", type: "playGames", baseTarget: 2, difficulty: "Easy", xpReward: 30, coinReward: 10 },
-    { title: "Gamer Spirit", desc: "Complete 5 mini-games", type: "playGames", baseTarget: 5, difficulty: "Medium", xpReward: 70, coinReward: 30 },
-    { title: "Game Enthusiast", desc: "Complete 10 mini-games", type: "playGames", baseTarget: 10, difficulty: "Hard", xpReward: 150, coinReward: 70 },
-    { title: "Morning Habit", desc: "Learn something before noon", type: "maintainStreak", baseTarget: 1, difficulty: "Easy", xpReward: 60, coinReward: 25 },
-    { title: "Dedicating Student", desc: "Maintain streak for today", type: "maintainStreak", baseTarget: 1, difficulty: "Easy", xpReward: 100, coinReward: 50 },
-    { title: "Flashcard Ninja", desc: "Review 15 flashcards", type: "reviewWords", baseTarget: 15, difficulty: "Medium", xpReward: 80, coinReward: 40 },
-    { title: "Pronunciation Pro", desc: "Speak 5 words correctly", type: "aiPronunciation", baseTarget: 5, difficulty: "Medium", xpReward: 120, coinReward: 60 }
+    // 🧠 Nhóm Học Sâu (Deep Learning)
+    { title: "Meaning Master", desc: "Write meaning for 5 words", type: "writeMeaning", baseTarget: 5, difficulty: "Easy", xpReward: 60, coinReward: 25 },
+    { title: "Example Builder", desc: "Create 3 example sentences", type: "writeExample", baseTarget: 3, difficulty: "Medium", xpReward: 90, coinReward: 40 },
+    { title: "Context King", desc: "Learn 5 words with full context", type: "learnWithContext", baseTarget: 5, difficulty: "Medium", xpReward: 100, coinReward: 50 },
+    { title: "Synonym Hunter", desc: "Find synonyms for 5 words", type: "findSynonyms", baseTarget: 5, difficulty: "Medium", xpReward: 80, coinReward: 35 },
+
+    // 🔁 Nhóm Ghi Nhớ (Retention)
+    { title: "Memory Keeper", desc: "Review old words (day-2)", type: "spacedReview", baseTarget: 10, difficulty: "Easy", xpReward: 70, coinReward: 30 },
+    { title: "Long-term Brain", desc: "Review words after 7 days", type: "spacedReview7", baseTarget: 10, difficulty: "Medium", xpReward: 120, coinReward: 60 },
+    { title: "No Forget Zone", desc: "Get 90% correct in review", type: "accuracyReview", baseTarget: 90, difficulty: "Hard", xpReward: 150, coinReward: 70 },
+
+    // 🎯 Nhóm Kỹ Năng (Accuracy)
+    { title: "Sharp Mind", desc: "Answer 10 questions correctly in a row", type: "correctStreak", baseTarget: 10, difficulty: "Medium", xpReward: 100, coinReward: 50 },
+    { title: "Perfectionist", desc: "Finish a game with 100% accuracy", type: "perfectGame", baseTarget: 1, difficulty: "Hard", xpReward: 200, coinReward: 100 },
+    { title: "Speed Runner", desc: "Finish a quiz under 60 seconds", type: "fastQuiz", baseTarget: 1, difficulty: "Medium", xpReward: 90, coinReward: 40 },
+
+    // 🗣️ Nhóm AI / Speaking
+    { title: "Talkative Learner", desc: "Speak 10 words", type: "aiSpeaking", baseTarget: 10, difficulty: "Easy", xpReward: 80, coinReward: 30 },
+    { title: "Accent Master", desc: "Get 80+ pronunciation score", type: "pronunciationScore", baseTarget: 80, difficulty: "Medium", xpReward: 120, coinReward: 60 },
+    { title: "Shadowing Pro", desc: "Repeat 5 sentences correctly", type: "shadowing", baseTarget: 5, difficulty: "Hard", xpReward: 150, coinReward: 70 },
+
+    // 🧩 Nhóm Game Variety
+    { title: "Puzzle Solver", desc: "Complete 3 word puzzles", type: "wordPuzzle", baseTarget: 3, difficulty: "Easy", xpReward: 60, coinReward: 25 },
+    { title: "Match Master", desc: "Match 15 word pairs", type: "matchingGame", baseTarget: 15, difficulty: "Medium", xpReward: 90, coinReward: 40 },
+
+    // 🔥 Nhóm Quản Lý Thói Quen (Habit)
+    { title: "Early Bird", desc: "Open app before 9AM", type: "earlyLogin", baseTarget: 1, difficulty: "Easy", xpReward: 50, coinReward: 20 },
+    { title: "Night Owl", desc: "Study after 9PM", type: "nightStudy", baseTarget: 1, difficulty: "Easy", xpReward: 50, coinReward: 20 },
+    { title: "Consistency King", desc: "Complete 3 tasks today", type: "dailyTasks", baseTarget: 3, difficulty: "Medium", xpReward: 120, coinReward: 60 },
+    { title: "All-rounder", desc: "Do learn + review + game", type: "mixedActivity", baseTarget: 1, difficulty: "Hard", xpReward: 200, coinReward: 100 },
+
+    // 🎧 Nhóm Nghe (Listening)
+    { title: "Echo Learner", desc: "Listen to 5 word pronunciations", type: "listenWords", baseTarget: 5, difficulty: "Easy", xpReward: 50, coinReward: 20 },
+    { title: "Auditory pro", desc: "Listen and identify 10 words", type: "identifyFromAudio", baseTarget: 10, difficulty: "Medium", xpReward: 100, coinReward: 45 },
+
+    // 🐾 Nhóm Tương tác Mascot (Mascot Interaction)
+    { title: "Mascot's Friend", desc: "Tap on your mascot 5 times", type: "mascotInteract", baseTarget: 5, difficulty: "Easy", xpReward: 30, coinReward: 10 },
+    { title: "Fashionista", desc: "Change mascot's outfit once", type: "changeOutfit", baseTarget: 1, difficulty: "Easy", xpReward: 40, coinReward: 15 },
+    { title: "Happy Mascot", desc: "Keep mascot's emotion 'Happy' or 'Excited'", type: "keepHappy", baseTarget: 1, difficulty: "Medium", xpReward: 80, coinReward: 30 },
+
+    // 🌐 Nhóm Cộng đồng (Social - Placeholder)
+    { title: "Deep Sharer", desc: "Share a word's detail to friends", type: "shareWord", baseTarget: 1, difficulty: "Easy", xpReward: 60, coinReward: 30 },
+    { title: "Social Learner", desc: "Invite a friend to study", type: "inviteFriend", baseTarget: 1, difficulty: "Hard", xpReward: 300, coinReward: 150 }
 ];
 
 // GET /api/daily-missions — lấy nhiệm vụ hôm nay của user
@@ -40,9 +73,21 @@ const getDailyMissions = async (req, res) => {
             pool = await MissionPool.insertMany(defaultPool);
         }
 
-        // Shuffle and pick 3
-        const shuffled = pool.sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, Math.min(3, pool.length));
+        // Shuffle and pick smart selection: 1 Easy, 1 Medium, 1 Hard
+        const easy = pool.filter(m => m.difficulty === 'Easy').sort(() => 0.5 - Math.random());
+        const medium = pool.filter(m => m.difficulty === 'Medium').sort(() => 0.5 - Math.random());
+        const hard = pool.filter(m => m.difficulty === 'Hard').sort(() => 0.5 - Math.random());
+
+        const selected = [];
+        if (easy.length > 0) selected.push(easy[0]);
+        if (medium.length > 0) selected.push(medium[0]);
+        if (hard.length > 0) selected.push(hard[0]);
+
+        // If something is missing (e.g. no hard missions in pool), pick randoms to make it 3
+        if (selected.length < 3) {
+            const remaining = pool.filter(m => !selected.includes(m)).sort(() => 0.5 - Math.random());
+            selected.push(...remaining.slice(0, 3 - selected.length));
+        }
 
         const newMissions = selected.map(template => ({
             userId,
