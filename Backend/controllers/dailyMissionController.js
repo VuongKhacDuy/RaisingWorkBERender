@@ -56,20 +56,30 @@ const getDailyMissions = async (req, res) => {
         startOfToday.setHours(0, 0, 0, 0);
 
         // Find missions for today
-        const missions = await DailyMission.find({
+        let missions = await DailyMission.find({
             userId,
             resetDate: { $gte: startOfToday }
         });
 
-        if (missions.length > 0) {
+        if (missions.length >= 3) {
             return res.status(200).json({ data: missions });
+        }
+
+        // If user has fewer than 3 (maybe from old logic), clear them and regenerate a fresh set of 3
+        if (missions.length > 0) {
+            console.log(`Backend: User has only ${missions.length} missions. Resetting for today...`);
+            await DailyMission.deleteMany({
+                userId,
+                resetDate: { $gte: startOfToday }
+            });
         }
 
         // No missions for today yet? Randomly pick 3 from the pool
         let pool = await MissionPool.find({ isActive: true });
 
-        if (pool.length === 0) {
-            console.log('Backend: Mission Pool is empty. Auto-seeding default missions...');
+        if (pool.length < 10) {
+            console.log(`Backend: Mission Pool is incomplete (${pool.length}). Re-seeding default missions...`);
+            await MissionPool.deleteMany({});
             pool = await MissionPool.insertMany(defaultPool);
         }
 
