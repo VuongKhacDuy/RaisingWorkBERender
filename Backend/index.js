@@ -40,6 +40,8 @@ const gameStatisticsRouter = require('./routes/gameStatisticsRoute');
 const userProgressRouter = require('./routes/userProgressRoute');
 const dailyMissionRouter = require('./routes/dailyMissionRoute');
 const testRouter = require('./routes/testRoute');
+const petTemplateRouter = require('./routes/petTemplateRoute');
+const userPetRouter = require('./routes/userPetRoute');
 const port = 3000;
 
 // ADD THIS
@@ -74,6 +76,8 @@ app.use('/api/game-statistics', gameStatisticsRouter);
 app.use('/api/user-progress', userProgressRouter);
 app.use('/api/daily-missions', dailyMissionRouter);
 app.use('/api/test', testRouter);
+app.use('/api/pets/templates', petTemplateRouter);
+app.use('/api/pets/my', userPetRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
