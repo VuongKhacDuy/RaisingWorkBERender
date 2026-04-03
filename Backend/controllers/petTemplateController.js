@@ -10,11 +10,16 @@ const createPetTemplate = async (req, res) => {
             element, quality,
             baseHp, baseMana, basePower,
             maxLevel, lifespan, catchRate,
-            skills,
+            skills, sprites,
+            gen, habitats, habitatRates,
         } = req.body;
 
         if (!name || !image || !element || !baseHp || !baseMana || !basePower) {
             return res.status(400).json({ message: "Thiếu trường bắt buộc: name, image, element, baseHp, baseMana, basePower." });
+        }
+
+        if (!Array.isArray(element) || element.length < 1 || element.length > 3) {
+            return res.status(400).json({ message: "Phải có từ 1 đến 3 hệ nguyên tố." });
         }
 
         const pet = new PetTemplate({
@@ -23,6 +28,10 @@ const createPetTemplate = async (req, res) => {
             baseHp, baseMana, basePower,
             maxLevel, lifespan, catchRate,
             skills: skills || [],
+            sprites: sprites || {},
+            gen: gen || 1,
+            habitats: habitats || ["plains"],
+            habitatRates: habitatRates || {},
         });
 
         await pet.save();

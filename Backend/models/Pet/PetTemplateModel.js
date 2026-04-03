@@ -12,10 +12,28 @@ const petTemplateSchema = new mongoose.Schema({
     image: { type: String, required: true },      // URL hoặc asset name
     description: { type: String, default: "" },
 
+    // Các ảnh sprite hướng dẫn (optionals)
+    sprites: {
+        front: { type: String, default: "" },
+        back: { type: String, default: "" },
+        left: { type: String, default: "" },
+        right: { type: String, default: "" },
+        topLeft: { type: String, default: "" },
+        topRight: { type: String, default: "" },
+        bottomLeft: { type: String, default: "" },
+        bottomRight: { type: String, default: "" }
+    },
+
     // Hệ nguyên tố
     element: {
-        type: String,
+        type: [String],
         enum: ["fire", "water", "grass", "electric", "dark", "light", "earth", "ice", "wind", "poison"],
+        validate: {
+            validator: function (v) {
+                return v && v.length >= 1 && v.length <= 3;
+            },
+            message: "Mỗi Pet phải có từ 1 đến 3 hệ nguyên tố."
+        },
         required: true,
     },
 
@@ -24,6 +42,30 @@ const petTemplateSchema = new mongoose.Schema({
         type: String,
         enum: ["common", "uncommon", "rare", "epic", "legendary"],
         default: "common",
+    },
+
+    // Thế hệ (Gen)
+    gen: { type: Number, default: 1, required: true },
+
+    // Khu vực xuất hiện (Habitats)
+    habitats: {
+        type: [String],
+        enum: ["plains", "mountain", "ocean", "river", "lake", "grassland", "sky"],
+        default: ["plains"],
+        required: true,
+        validate: {
+            validator: function (v) {
+                return v && v.length >= 1;
+            },
+            message: "Mỗi Pet phải có ít nhất 1 khu vực xuất hiện."
+        }
+    },
+
+    // Tỉ lệ xuất hiện theo từng khu vực (key: habitatId, value: rate 0-1)
+    habitatRates: {
+        type: Map,
+        of: Number,
+        default: {}
     },
 
     // Chỉ số gốc (base stats — scale theo level khi người chơi sở hữu)
