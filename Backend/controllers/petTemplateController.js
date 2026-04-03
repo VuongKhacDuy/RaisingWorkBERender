@@ -51,6 +51,7 @@ const getAllPetTemplates = async (req, res) => {
         const filter = {};
         if (req.query.element) filter.element = req.query.element;
         if (req.query.quality) filter.quality = req.query.quality;
+        if (req.query.habitat) filter.habitats = req.query.habitat;
 
         const pets = await PetTemplate.find(filter).sort({ quality: 1, name: 1 });
         res.status(200).json({ data: pets, total: pets.length });
