@@ -56,38 +56,15 @@ const syncUserProgress = async (req, res) => {
             { upsert: true, new: true }
         );
 
-        // 3. Tự động tạo bản ghi UserPet cho các Mascot mới mở khóa
+        // 3. Tự động tạo bản ghi UserPet cho các Mascot mới (Xử lý bất đồng bộ để tránh block request)
         if (unlockedMascots && Array.isArray(unlockedMascots)) {
             const newlyUnlocked = unlockedMascots.filter(m => !oldUnlocked.includes(m));
             
-            for (const mascotIdOrName of newlyUnlocked) {
-                // Kiểm tra xem đã có bản ghi UserPet chưa (đề phòng)
-                // Tìm PetTemplate theo ID hoặc Name (slug logic)
-                const template = await PetTemplate.findOne({ 
-                    $or: [
-                        { _id: mongoose.isValidObjectId(mascotIdOrName) ? mascotIdOrName : new mongoose.Types.ObjectId() }, 
-                        { name: new RegExp(`^${mascotIdOrName}$`, 'i') } 
-                    ] 
+            if (newlyUnlocked.length > 0) {
+                // Chạy ngầm quá trình tạo pet
+                processNewMascots(userId, newlyUnlocked, selectedMascot).catch(err => {
+                    console.error("❌ [Backend] background processNewMascots error:", err);
                 });
-
-                if (template) {
-                    const existingUserPet = await UserPet.findOne({ userId, petTemplateId: template._id });
-                    if (!existingUserPet) {
-                        const newUserPet = new UserPet({
-                            userId,
-                            petTemplateId: template._id,
-                            hp: template.baseHp,
-                            mana: template.baseMana,
-                            power: template.basePower,
-                            level: 1,
-                            isActive: (selectedMascot === mascotIdOrName)
-                        });
-                        await newUserPet.save();
-                        console.log(`✨ [Backend] Created UserPet profile for ${template.name} (User: ${userId})`);
-                    }
-                } else {
-                    console.log(`⚠️ [Backend] PetTemplate not found for: ${mascotIdOrName}`);
-                }
             }
         }
 
@@ -97,5 +74,44 @@ const syncUserProgress = async (req, res) => {
         res.status(500).json({ message: 'Failed to sync user progress.' });
     }
 };
+
+// Hàm phụ để xử lý tạo Pet ngầm
+async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
+    for (const mascotIdOrName of newlyUnlocked) {
+        try {
+            // Tìm template
+            const query = {
+                $or: [
+                    { name: new RegExp(`^${mascotIdOrName}$`, 'i') }
+                ]
+            };
+            
+            if (mongoose.isValidObjectId(mascotIdOrName)) {
+                query.$or.push({ _id: mascotIdOrName });
+            }
+
+            const template = await PetTemplate.findOne(query);
+
+            if (template) {
+                const existingUserPet = await UserPet.findOne({ userId, petTemplateId: template._id });
+                if (!existingUserPet) {
+                    const newUserPet = new UserPet({
+                        userId,
+                        petTemplateId: template._id,
+                        hp: template.baseHp,
+                        mana: template.baseMana,
+                        power: template.basePower,
+                        level: 1,
+                        isActive: (selectedMascot === mascotIdOrName)
+                    });
+                    await newUserPet.save();
+                    console.log(`✨ [Backend] Created UserPet profile for ${template.name}`);
+                }
+            }
+        } catch (e) {
+            console.error(`⚠️ [Backend] Error creating pet for ${mascotIdOrName}:`, e);
+        }
+    }
+}
 
 module.exports = { getUserProgress, syncUserProgress };
