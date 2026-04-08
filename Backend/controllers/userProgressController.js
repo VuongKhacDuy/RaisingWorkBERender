@@ -3,26 +3,25 @@ const UserProgress = require('../models/User/UserProgressModel');
 const UserPet = require('../models/Pet/UserPetModel');
 const PetTemplate = require('../models/Pet/PetTemplateModel');
 
-// GET /api/user-progress — lấy tiến trình của user đang đăng nhập
+// GET /api/user-progress
 const getUserProgress = async (req, res) => {
     try {
         const userId = req.userId;
         let progress = await UserProgress.findOne({ userId });
 
         if (!progress) {
-            // Tạo mặc định nếu chưa có
             progress = new UserProgress({ userId });
             await progress.save();
         }
 
         res.status(200).json({ data: progress });
     } catch (error) {
-        console.error('Error fetching user progress:', error);
+        console.error('[UserProgress] fetch error:', error);
         res.status(500).json({ message: 'Failed to fetch user progress.' });
     }
 };
 
-// POST /api/user-progress/sync — đồng bộ tiến trình từ app lên
+// POST /api/user-progress/sync
 const syncUserProgress = async (req, res) => {
     try {
         const userId = req.userId;
@@ -31,13 +30,11 @@ const syncUserProgress = async (req, res) => {
             level, selectedMascot, selectedOutfit, unlockedOutfits, unlockedMascots
         } = req.body;
 
-        console.log(`📡 [Backend] Syncing UserProgress for User: ${userId}`);
+        console.log(`[UserProgress] Syncing for User: ${userId}`);
         
-        // 1. Lấy dữ liệu cũ để so sánh
         const oldProgress = await UserProgress.findOne({ userId });
-        const oldUnlocked = oldProgress ? oldProgress.unlockedMascots : [];
+        const oldUnlocked = oldProgress ? (oldProgress.unlockedMascots || []) : [];
 
-        // 2. Cập nhật UserProgress
         const updated = await UserProgress.findOneAndUpdate(
             { userId },
             {
@@ -56,37 +53,34 @@ const syncUserProgress = async (req, res) => {
             { upsert: true, new: true }
         );
 
-        // 3. Tự động tạo bản ghi UserPet cho các Mascot mới (Xử lý bất đồng bộ để tránh block request)
         if (unlockedMascots && Array.isArray(unlockedMascots)) {
             const newlyUnlocked = unlockedMascots.filter(m => !oldUnlocked.includes(m));
-            
             if (newlyUnlocked.length > 0) {
-                // Chạy ngầm quá trình tạo pet
+                // Background processing
                 processNewMascots(userId, newlyUnlocked, selectedMascot).catch(err => {
-                    console.error("❌ [Backend] background processNewMascots error:", err);
+                    console.error("[UserProgress] background error:", err);
                 });
             }
         }
 
         res.status(200).json({ message: 'User progress synced.', data: updated });
     } catch (error) {
-        console.error('Error syncing user progress:', error);
+        console.error('[UserProgress] sync error:', error);
         res.status(500).json({ message: 'Failed to sync user progress.' });
     }
 };
 
-// Hàm phụ để xử lý tạo Pet ngầm
 async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
     for (const mascotIdOrName of newlyUnlocked) {
+        if (!mascotIdOrName) continue;
         try {
-            // Tìm template
             const query = {
                 $or: [
-                    { name: new RegExp(`^${mascotIdOrName}$`, 'i') }
+                    { name: mascotIdOrName }
                 ]
             };
             
-            if (mongoose.isValidObjectId(mascotIdOrName)) {
+            if (mongoose && mongoose.isValidObjectId && mongoose.isValidObjectId(mascotIdOrName)) {
                 query.$or.push({ _id: mascotIdOrName });
             }
 
@@ -102,14 +96,14 @@ async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
                         mana: template.baseMana,
                         power: template.basePower,
                         level: 1,
-                        isActive: (selectedMascot === mascotIdOrName)
+                        isActive: (selectedMascot === mascotIdOrName || selectedMascot === template.name)
                     });
                     await newUserPet.save();
-                    console.log(`✨ [Backend] Created UserPet profile for ${template.name}`);
+                    console.log(`[UserProgress] Created UserPet for ${template.name}`);
                 }
             }
         } catch (e) {
-            console.error(`⚠️ [Backend] Error creating pet for ${mascotIdOrName}:`, e);
+            console.error(`[UserProgress] Create pet error for ${mascotIdOrName}:`, e);
         }
     }
 }
