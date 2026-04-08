@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const UserProgress = require('../models/User/UserProgressModel');
+const UserPet = require('../models/Pet/UserPetModel');
+const PetTemplate = require('../models/Pet/PetTemplateModel');
 
 // GET /api/user-progress — lấy tiến trình của user đang đăng nhập
 const getUserProgress = async (req, res) => {
@@ -28,6 +31,13 @@ const syncUserProgress = async (req, res) => {
             level, selectedMascot, selectedOutfit, unlockedOutfits, unlockedMascots
         } = req.body;
 
+        console.log(`📡 [Backend] Syncing UserProgress for User: ${userId}`);
+        
+        // 1. Lấy dữ liệu cũ để so sánh
+        const oldProgress = await UserProgress.findOne({ userId });
+        const oldUnlocked = oldProgress ? oldProgress.unlockedMascots : [];
+
+        // 2. Cập nhật UserProgress
         const updated = await UserProgress.findOneAndUpdate(
             { userId },
             {
@@ -45,6 +55,41 @@ const syncUserProgress = async (req, res) => {
             },
             { upsert: true, new: true }
         );
+
+        // 3. Tự động tạo bản ghi UserPet cho các Mascot mới mở khóa
+        if (unlockedMascots && Array.isArray(unlockedMascots)) {
+            const newlyUnlocked = unlockedMascots.filter(m => !oldUnlocked.includes(m));
+            
+            for (const mascotIdOrName of newlyUnlocked) {
+                // Kiểm tra xem đã có bản ghi UserPet chưa (đề phòng)
+                // Tìm PetTemplate theo ID hoặc Name (slug logic)
+                const template = await PetTemplate.findOne({ 
+                    $or: [
+                        { _id: mongoose.isValidObjectId(mascotIdOrName) ? mascotIdOrName : new mongoose.Types.ObjectId() }, 
+                        { name: new RegExp(`^${mascotIdOrName}$`, 'i') } 
+                    ] 
+                });
+
+                if (template) {
+                    const existingUserPet = await UserPet.findOne({ userId, petTemplateId: template._id });
+                    if (!existingUserPet) {
+                        const newUserPet = new UserPet({
+                            userId,
+                            petTemplateId: template._id,
+                            hp: template.baseHp,
+                            mana: template.baseMana,
+                            power: template.basePower,
+                            level: 1,
+                            isActive: (selectedMascot === mascotIdOrName)
+                        });
+                        await newUserPet.save();
+                        console.log(`✨ [Backend] Created UserPet profile for ${template.name} (User: ${userId})`);
+                    }
+                } else {
+                    console.log(`⚠️ [Backend] PetTemplate not found for: ${mascotIdOrName}`);
+                }
+            }
+        }
 
         res.status(200).json({ message: 'User progress synced.', data: updated });
     } catch (error) {
