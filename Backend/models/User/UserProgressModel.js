@@ -7,10 +7,11 @@ const userProgressSchema = new mongoose.Schema({
     totalXP: { type: Number, default: 0 },
     totalCoins: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
-    selectedMascot: { type: String, default: 'robot' },
-    selectedOutfit: { type: String, default: 'basic' },
-    unlockedOutfits: { type: [String], default: ['basic'] },
-    unlockedMascots: { type: [String], default: ['robot', 'cat', 'boy'] }
+    selectedMascot: { type: String, default: null },
+    selectedOutfit: { type: String, default: null },
+    unlockedOutfits: { type: [String], default: [] },
+    unlockedMascots: { type: [String], default: [] },
+    userCharacter: { type: String, default: null }
 }, { timestamps: true });
 
 module.exports = mongoose.model('UserProgress', userProgressSchema);
