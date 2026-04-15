@@ -3,8 +3,6 @@ const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const Achievement = require("../models/Achievement/AchievementModel");
-const defaultAchievements = require("../utils/defaultAchievements");
 
 const secretKey = process.env.JWT_SECRET || "default_secret_key";
 
@@ -57,18 +55,6 @@ const registerUser = async (req, res) => {
         console.log(`Registration attempt for email: ${email}`);
         await newUser.save();
         console.log(`User saved successfully: ${email}`);
-
-        // 🔑 Seed default locked achievements so the Swift app shows gray icons immediately
-        try {
-            const userAchievements = defaultAchievements.map(ach => ({
-                ...ach,
-                userId: newUser._id
-            }));
-            await Achievement.insertMany(userAchievements);
-            console.log(`Default achievements seeded for: ${email}`);
-        } catch (seedErr) {
-            console.log("Failed to seed achievements, but user was created", seedErr);
-        }
 
         // Respond immediately — do not wait for email
         res.status(201).json({

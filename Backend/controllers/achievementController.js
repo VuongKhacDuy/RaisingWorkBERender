@@ -1,43 +1,42 @@
 const Achievement = require("../models/Achievement/AchievementModel");
+const UserAchievement = require("../models/Achievement/UserAchievementModel");
+const defaultAchievements = require("../utils/defaultAchievements");
 
 // POST /api/achievements/sync — Sync multiple achievements from the app
 const syncAchievements = async (req, res) => {
     try {
-        const { achievements } = req.body; // Array of achievements
+        const { achievements } = req.body; // Array of achievements from App
+        const userId = req.userId;
 
         if (!Array.isArray(achievements)) {
-            return res.status(400).json({ message: "Invalid payload formatting. Expected an array of achievements." });
+            return res.status(400).json({ message: "Invalid payload formatting." });
         }
 
-        const userId = req.userId;
-        const bulkOps = achievements.map((ach) => ({
-            updateOne: {
-                filter: { userId, achievementId: ach.id },
-                update: {
-                    $set: {
-                        title: ach.title,
-                        desc: ach.desc,
-                        iconName: ach.iconName,
-                        category: ach.category,
-                        requirement: ach.requirement,
-                        currentProgress: ach.currentProgress,
-                        isUnlocked: ach.isUnlocked,
-                        unlockedDate: ach.unlockedDate || null,
-                        updatedAt: new Date(),
-                    }
-                },
-                upsert: true
-            }
-        }));
+        // Chỉ lưu những thành tựu có tiến độ thực tế (tiết kiệm DB)
+        const bulkOps = achievements
+            .filter(ach => ach.currentProgress > 0 || ach.isUnlocked)
+            .map((ach) => ({
+                updateOne: {
+                    filter: { userId, achievementId: ach.id },
+                    update: {
+                        $set: {
+                            currentProgress: ach.currentProgress,
+                            isUnlocked: ach.isUnlocked,
+                            unlockedDate: ach.unlockedDate || null,
+                            updatedAt: new Date(),
+                        }
+                    },
+                    upsert: true
+                }
+            }));
 
         if (bulkOps.length > 0) {
-            await Achievement.bulkWrite(bulkOps);
+            await UserAchievement.bulkWrite(bulkOps);
         }
 
         res.status(200).json({
             message: "Achievements synced successfully.",
-            syncedCount: bulkOps.length,
-            deletedCount: deleteResult.deletedCount,
+            syncedCount: bulkOps.length
         });
     } catch (error) {
         console.error("Error syncing achievements:", error);
@@ -45,34 +44,48 @@ const syncAchievements = async (req, res) => {
     }
 };
 
-// GET /api/achievements — Get all achievements of the logged-in user
+// GET /api/achievements — Get all achievements with merged user progress
 const getAchievements = async (req, res) => {
     try {
         const userId = req.userId;
-        let achievements = await Achievement.find({ userId });
 
-        // 🔑 Smart Sync (Dynamic Seed) - Xử lý chống Race Condition bằng bulkWrite Upsert
-        const defaultAchievements = require("../utils/defaultAchievements");
-        if (achievements.length < defaultAchievements.length) {
-            
-            const bulkOps = defaultAchievements.map((ach) => ({
+        // 1. Đảm bảo bảng Master (Achievement) luôn có đủ data từ defaultAchievements.js
+        let masterAchievements = await Achievement.find();
+        if (masterAchievements.length < defaultAchievements.length) {
+            console.log("Master Sync: Cập nhật danh sách thành tựu gốc...");
+            const masterOps = defaultAchievements.map(ach => ({
                 updateOne: {
-                    filter: { userId, achievementId: ach.achievementId },
-                    update: { $setOnInsert: { ...ach, userId: userId } },
+                    filter: { achievementId: ach.achievementId },
+                    update: { $set: ach },
                     upsert: true
                 }
             }));
-            
-            // bulkWrite đảm bảo dù iOS có gọi liên thanh 10 API cùng lúc thì DB cũng không bao giờ đẻ ra cúp trùng (Duplicate Error)
-            await Achievement.bulkWrite(bulkOps);
-            console.log(`Smart Sync (Safe): Đã quét và lấp đầy các cúp còn thiếu cho user ${userId}`);
-            
-            // Kéo lại cục data hoàn chỉnh trả về
-            achievements = await Achievement.find({ userId });
+            await Achievement.bulkWrite(masterOps);
+            masterAchievements = await Achievement.find();
         }
 
+        // 2. Lấy quá trình thực tế của User
+        const userProgress = await UserAchievement.find({ userId });
+
+        // 3. Trộn dữ liệu (Virtual Merge)
+        const combinedData = masterAchievements.map(master => {
+            const progress = userProgress.find(p => p.achievementId === master.achievementId);
+            
+            return {
+                achievementId: master.achievementId,
+                title: master.title,
+                desc: master.desc,
+                iconName: master.iconName,
+                category: master.category,
+                requirement: master.requirement,
+                currentProgress: progress ? progress.currentProgress : 0,
+                isUnlocked: progress ? progress.isUnlocked : false,
+                unlockedDate: progress ? progress.unlockedDate : null
+            };
+        });
+
         res.status(200).json({
-            data: achievements,
+            data: combinedData,
         });
     } catch (error) {
         console.error("Error fetching achievements:", error);

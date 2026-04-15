@@ -1,14 +1,10 @@
 const mongoose = require("mongoose");
 
 const achievementSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-    },
     achievementId: {
         type: String,
         required: true,
+        unique: true
     },
     title: {
         type: String,
@@ -29,22 +25,6 @@ const achievementSchema = new mongoose.Schema({
     requirement: {
         type: Number,
         required: true,
-    },
-    currentProgress: {
-        type: Number,
-        default: 0,
-    },
-    isUnlocked: {
-        type: Boolean,
-        default: false,
-    },
-    unlockedDate: {
-        type: Date,
-        default: null,
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now,
     }
 });
 
