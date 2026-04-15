@@ -51,25 +51,24 @@ const getAchievements = async (req, res) => {
         const userId = req.userId;
         let achievements = await Achievement.find({ userId });
 
-        // 🔑 Smart Sync (Dynamic Seed): Tự động đắp thêm các thành tựu mới nếu Developer thêm bản cập nhật mới
+        // 🔑 Smart Sync (Dynamic Seed) - Xử lý chống Race Condition bằng bulkWrite Upsert
         const defaultAchievements = require("../utils/defaultAchievements");
         if (achievements.length < defaultAchievements.length) {
-            const userAchievementIds = achievements.map(a => a.achievementId);
-            const missingAchievements = defaultAchievements.filter(
-                (defAch) => !userAchievementIds.includes(defAch.achievementId)
-            );
-
-            if (missingAchievements.length > 0) {
-                const newAchievementsToInsert = missingAchievements.map(ach => ({
-                    ...ach,
-                    userId: userId
-                }));
-                await Achievement.insertMany(newAchievementsToInsert);
-                console.log(`Smart Sync: Đã tự động thêm ${missingAchievements.length} thành tựu mới cho user ${userId}`);
-                
-                // Lấy lại bộ danh sách hoàn chỉnh
-                achievements = await Achievement.find({ userId });
-            }
+            
+            const bulkOps = defaultAchievements.map((ach) => ({
+                updateOne: {
+                    filter: { userId, achievementId: ach.achievementId },
+                    update: { $setOnInsert: { ...ach, userId: userId } },
+                    upsert: true
+                }
+            }));
+            
+            // bulkWrite đảm bảo dù iOS có gọi liên thanh 10 API cùng lúc thì DB cũng không bao giờ đẻ ra cúp trùng (Duplicate Error)
+            await Achievement.bulkWrite(bulkOps);
+            console.log(`Smart Sync (Safe): Đã quét và lấp đầy các cúp còn thiếu cho user ${userId}`);
+            
+            // Kéo lại cục data hoàn chỉnh trả về
+            achievements = await Achievement.find({ userId });
         }
 
         res.status(200).json({
