@@ -76,6 +76,8 @@ const getAchievements = async (req, res) => {
                 iconName: master.iconName,
                 category: master.category,
                 requirement: master.requirement,
+                xpReward: master.xpReward || 0,
+                coinReward: master.coinReward || 0,
                 currentProgress: progress ? progress.currentProgress : 0,
                 isUnlocked: progress ? progress.isUnlocked : false,
                 unlockedDate: progress ? progress.unlockedDate : null

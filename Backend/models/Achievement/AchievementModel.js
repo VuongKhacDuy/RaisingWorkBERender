@@ -25,6 +25,14 @@ const achievementSchema = new mongoose.Schema({
     requirement: {
         type: Number,
         required: true,
+    },
+    xpReward: {
+        type: Number,
+        default: 0
+    },
+    coinReward: {
+        type: Number,
+        default: 0
     }
 });
 
