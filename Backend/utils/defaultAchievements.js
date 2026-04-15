@@ -40,12 +40,22 @@ const defaultAchievements = [
         isUnlocked: false
     },
     {
-        achievementId: "ACH_LEVEL_10",
-        title: "Thăng Tiến Vượt Bậc",
-        desc: "Đạt đến cấp độ 10 trong ứng dụng.",
-        iconName: "star.fill",
+        achievementId: "ACH_RICH_1000",
+        title: "Chúa Tể Tiền Bạc",
+        desc: "Làm giàu không khó! Tích lũy đủ 1,000 UUMI Coins trong tài khoản.",
+        iconName: "banknote.fill",
         category: "Progression",
-        requirement: 10,
+        requirement: 1000,
+        currentProgress: 0,
+        isUnlocked: false
+    },
+    {
+        achievementId: "ACH_Words_5",
+        title: "Khởi đầu an toàn",
+        desc: "Hoàn thành khởi đầu với việc học 5 từ vựng.",
+        iconName: "book.fill",
+        category: "Learning",
+        requirement: 5,
         currentProgress: 0,
         isUnlocked: false
     }
