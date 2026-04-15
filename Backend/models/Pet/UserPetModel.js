@@ -13,17 +13,21 @@ const userPetSchema = new mongoose.Schema({
     },
 
     // Tùy chỉnh của người dùng
-    nickname: { type: String, default: "" },
-    isActive: { type: Boolean, default: false },   // Pet đang được chọn làm main
+    nickname: { type: String, default: '' },
+    isActive: { type: Boolean, default: false },
 
     // Tiến trình
     level: { type: Number, default: 1, min: 1 },
-    xp: { type: Number, default: 0, min: 0 },       // XP tích lũy trong level hiện tại
+    xp: { type: Number, default: 0, min: 0 },
 
-    // Chỉ số hiện tại (= base * level multiplier)
-    hp: { type: Number, default: 0 },
-    mana: { type: Number, default: 0 },
-    power: { type: Number, default: 0 },
+    // Chỉ số chiến đấu (random khi catch)
+    hp: { type: Number, default: 100 },
+    maxHp: { type: Number, default: 100 },
+    mana: { type: Number, default: 50 },
+    maxMana: { type: Number, default: 50 },
+    power: { type: Number, default: 15 },
+    defense: { type: Number, default: 10 },
+    speed: { type: Number, default: 10 },
 
     // Thời điểm bắt được
     caughtAt: { type: Date, default: Date.now },

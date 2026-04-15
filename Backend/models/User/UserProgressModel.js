@@ -8,9 +8,9 @@ const userProgressSchema = new mongoose.Schema({
     totalCoins: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     selectedMascot: { type: String, default: null },
+    selectedMascotInstanceId: { type: String, default: null },
     selectedOutfit: { type: String, default: null },
     unlockedOutfits: { type: [String], default: [] },
-    unlockedMascots: { type: [String], default: [] },
     userCharacter: { type: String, default: null }
 }, { timestamps: true });
 

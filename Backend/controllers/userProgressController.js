@@ -27,7 +27,8 @@ const syncUserProgress = async (req, res) => {
         const userId = req.userId;
         const {
             currentStreak, lastActivityDate, totalXP, totalCoins,
-            level, selectedMascot, selectedOutfit, unlockedOutfits, unlockedMascots, userCharacter
+            level, selectedMascot, selectedMascotInstanceId, selectedOutfit,
+            unlockedOutfits, userCharacter
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -44,25 +45,15 @@ const syncUserProgress = async (req, res) => {
                     ...(totalXP !== undefined && { totalXP }),
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
-                    ...(selectedMascot !== undefined && { selectedMascot }),
-                    ...(selectedOutfit !== undefined && { selectedOutfit }),
+                    ...(selectedMascot !== undefined && selectedMascot !== '' && { selectedMascot }),
+                    ...(selectedMascotInstanceId !== undefined && selectedMascotInstanceId !== '' && { selectedMascotInstanceId }),
+                    ...(selectedOutfit !== undefined && selectedOutfit !== '' && { selectedOutfit }),
                     ...(unlockedOutfits !== undefined && { unlockedOutfits }),
-                    ...(unlockedMascots !== undefined && { unlockedMascots }),
                     ...(userCharacter !== undefined && userCharacter !== '' && { userCharacter }),
                 }
             },
             { upsert: true, new: true }
         );
-
-        if (unlockedMascots && Array.isArray(unlockedMascots)) {
-            const newlyUnlocked = unlockedMascots.filter(m => !oldUnlocked.includes(m));
-            if (newlyUnlocked.length > 0) {
-                // Background processing
-                processNewMascots(userId, newlyUnlocked, selectedMascot).catch(err => {
-                    console.error("[UserProgress] background error:", err);
-                });
-            }
-        }
 
         res.status(200).json({ message: 'User progress synced.', data: updated });
     } catch (error) {
