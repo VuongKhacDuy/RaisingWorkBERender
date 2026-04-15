@@ -49,7 +49,28 @@ const syncAchievements = async (req, res) => {
 const getAchievements = async (req, res) => {
     try {
         const userId = req.userId;
-        const achievements = await Achievement.find({ userId });
+        let achievements = await Achievement.find({ userId });
+
+        // 🔑 Smart Sync (Dynamic Seed): Tự động đắp thêm các thành tựu mới nếu Developer thêm bản cập nhật mới
+        const defaultAchievements = require("../utils/defaultAchievements");
+        if (achievements.length < defaultAchievements.length) {
+            const userAchievementIds = achievements.map(a => a.achievementId);
+            const missingAchievements = defaultAchievements.filter(
+                (defAch) => !userAchievementIds.includes(defAch.achievementId)
+            );
+
+            if (missingAchievements.length > 0) {
+                const newAchievementsToInsert = missingAchievements.map(ach => ({
+                    ...ach,
+                    userId: userId
+                }));
+                await Achievement.insertMany(newAchievementsToInsert);
+                console.log(`Smart Sync: Đã tự động thêm ${missingAchievements.length} thành tựu mới cho user ${userId}`);
+                
+                // Lấy lại bộ danh sách hoàn chỉnh
+                achievements = await Achievement.find({ userId });
+            }
+        }
 
         res.status(200).json({
             data: achievements,
