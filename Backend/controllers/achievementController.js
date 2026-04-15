@@ -13,30 +13,28 @@ const syncAchievements = async (req, res) => {
         }
 
         // Chỉ lưu những thành tựu có tiến độ thực tế (tiết kiệm DB)
-        const bulkOps = achievements
+        const progressToSave = achievements
             .filter(ach => ach.currentProgress > 0 || ach.isUnlocked)
             .map((ach) => ({
-                updateOne: {
-                    filter: { userId, achievementId: ach.id },
-                    update: {
-                        $set: {
-                            currentProgress: ach.currentProgress,
-                            isUnlocked: ach.isUnlocked,
-                            unlockedDate: ach.unlockedDate || null,
-                            updatedAt: new Date(),
-                        }
-                    },
-                    upsert: true
-                }
+                achievementId: ach.id,
+                currentProgress: ach.currentProgress,
+                isUnlocked: ach.isUnlocked,
+                unlockedDate: ach.unlockedDate || null,
+                updatedAt: new Date(),
             }));
 
-        if (bulkOps.length > 0) {
-            await UserAchievement.bulkWrite(bulkOps);
-        }
+        // Luôn sử dụng đúng một bản ghi duy nhất cho mỗi user (Tối ưu hóa bản ghi)
+        await UserAchievement.findOneAndUpdate(
+            { userId },
+            {
+                $set: { progress: progressToSave, updatedAt: new Date() }
+            },
+            { upsert: true, new: true }
+        );
 
         res.status(200).json({
             message: "Achievements synced successfully.",
-            syncedCount: bulkOps.length
+            syncedCount: progressToSave.length
         });
     } catch (error) {
         console.error("Error syncing achievements:", error);
@@ -52,7 +50,6 @@ const getAchievements = async (req, res) => {
         // 1. Đảm bảo bảng Master (Achievement) luôn có đủ data từ defaultAchievements.js
         let masterAchievements = await Achievement.find();
         if (masterAchievements.length < defaultAchievements.length) {
-            console.log("Master Sync: Cập nhật danh sách thành tựu gốc...");
             const masterOps = defaultAchievements.map(ach => ({
                 updateOne: {
                     filter: { achievementId: ach.achievementId },
@@ -64,13 +61,14 @@ const getAchievements = async (req, res) => {
             masterAchievements = await Achievement.find();
         }
 
-        // 2. Lấy quá trình thực tế của User
-        const userProgress = await UserAchievement.find({ userId });
+        // 2. Lấy "Tấm bảng vàng" duy nhất của User
+        const userProgressDoc = await UserAchievement.findOne({ userId });
+        const userProgressArray = userProgressDoc ? userProgressDoc.progress : [];
 
         // 3. Trộn dữ liệu (Virtual Merge)
         const combinedData = masterAchievements.map(master => {
-            const progress = userProgress.find(p => p.achievementId === master.achievementId);
-            
+            const progress = userProgressArray.find(p => p.achievementId === master.achievementId);
+
             return {
                 achievementId: master.achievementId,
                 title: master.title,
