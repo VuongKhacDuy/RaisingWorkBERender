@@ -42,6 +42,7 @@ const dailyMissionRouter = require('./routes/dailyMissionRoute');
 const testRouter = require('./routes/testRoute');
 const petTemplateRouter = require('./routes/petTemplateRoute');
 const userPetRouter = require('./routes/userPetRoute');
+const configRouter = require('./routes/configRoute');
 const port = 3000;
 
 // ADD THIS
@@ -78,6 +79,7 @@ app.use('/api/daily-missions', dailyMissionRouter);
 app.use('/api/test', testRouter);
 app.use('/api/pets/templates', petTemplateRouter);
 app.use('/api/pets/my', userPetRouter);
+app.use('/api/config', configRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
