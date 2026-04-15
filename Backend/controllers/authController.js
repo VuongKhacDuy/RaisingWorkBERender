@@ -5,8 +5,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const Achievement = require("../models/Achievement/AchievementModel");
 const defaultAchievements = require("../utils/defaultAchievements");
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 
 const secretKey = process.env.JWT_SECRET || "default_secret_key";
 
