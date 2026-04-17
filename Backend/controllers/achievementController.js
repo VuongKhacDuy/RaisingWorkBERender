@@ -93,4 +93,103 @@ const getAchievements = async (req, res) => {
     }
 };
 
-module.exports = { syncAchievements, getAchievements };
+// ─── TEMPLATE CRUD ─────────────────────────────────────────────────────────
+
+// GET /api/achievements/templates — List all master achievement templates
+const listTemplates = async (req, res) => {
+    try {
+        const templates = await Achievement.find().sort({ category: 1, requirement: 1 });
+        res.status(200).json({ data: templates });
+    } catch (error) {
+        console.error("Error listing achievement templates:", error);
+        res.status(500).json({ message: "Failed to fetch achievement templates." });
+    }
+};
+
+// POST /api/achievements/templates — Create one or many achievement templates
+// Body: single object OR array of objects
+// Required fields: achievementId, title, desc, iconName, category, requirement
+const createTemplate = async (req, res) => {
+    try {
+        const payload = req.body;
+        const items = Array.isArray(payload) ? payload : [payload];
+
+        // Validate required fields
+        const REQUIRED = ["achievementId", "title", "desc", "iconName", "category", "requirement"];
+        for (const item of items) {
+            const missing = REQUIRED.filter(f => !item[f] && item[f] !== 0);
+            if (missing.length > 0) {
+                return res.status(400).json({
+                    message: `Missing required fields: ${missing.join(", ")}`,
+                    item
+                });
+            }
+        }
+
+        // Upsert each item by achievementId (idempotent — safe to re-run)
+        const ops = items.map(item => ({
+            updateOne: {
+                filter: { achievementId: item.achievementId },
+                update: { $set: item },
+                upsert: true
+            }
+        }));
+        const result = await Achievement.bulkWrite(ops);
+
+        res.status(201).json({
+            message: `${items.length} achievement template(s) created/updated.`,
+            upsertedCount: result.upsertedCount,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        console.error("Error creating achievement template:", error);
+        res.status(500).json({ message: "Failed to create achievement template." });
+    }
+};
+
+// PUT /api/achievements/templates/:achievementId — Update a template
+const updateTemplate = async (req, res) => {
+    try {
+        const { achievementId } = req.params;
+        const updates = req.body;
+
+        // Prevent overwriting the achievementId itself
+        delete updates.achievementId;
+
+        const updated = await Achievement.findOneAndUpdate(
+            { achievementId },
+            { $set: updates },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ message: `Achievement '${achievementId}' not found.` });
+        }
+
+        res.status(200).json({ message: "Achievement template updated.", data: updated });
+    } catch (error) {
+        console.error("Error updating achievement template:", error);
+        res.status(500).json({ message: "Failed to update achievement template." });
+    }
+};
+
+// DELETE /api/achievements/templates/:achievementId — Delete a template
+const deleteTemplate = async (req, res) => {
+    try {
+        const { achievementId } = req.params;
+
+        const deleted = await Achievement.findOneAndDelete({ achievementId });
+
+        if (!deleted) {
+            return res.status(404).json({ message: `Achievement '${achievementId}' not found.` });
+        }
+
+        res.status(200).json({ message: `Achievement '${achievementId}' deleted successfully.` });
+    } catch (error) {
+        console.error("Error deleting achievement template:", error);
+        res.status(500).json({ message: "Failed to delete achievement template." });
+    }
+};
+
+module.exports = { syncAchievements, getAchievements, listTemplates, createTemplate, updateTemplate, deleteTemplate };
+
