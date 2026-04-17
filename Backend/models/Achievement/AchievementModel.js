@@ -33,6 +33,10 @@ const achievementSchema = new mongoose.Schema({
     coinReward: {
         type: Number,
         default: 0
+    },
+    isHidden: {
+        type: Number,
+        default: 0
     }
 });
 

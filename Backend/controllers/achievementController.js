@@ -1,6 +1,5 @@
 const Achievement = require("../models/Achievement/AchievementModel");
 const UserAchievement = require("../models/Achievement/UserAchievementModel");
-const defaultAchievements = require("../utils/defaultAchievements");
 
 // POST /api/achievements/sync — Sync multiple achievements from the app
 const syncAchievements = async (req, res) => {
@@ -47,19 +46,8 @@ const getAchievements = async (req, res) => {
     try {
         const userId = req.userId;
 
-        // 1. Đảm bảo bảng Master (Achievement) luôn có đủ data từ defaultAchievements.js
+        // 1. Lấy toàn bộ template từ bảng Master
         let masterAchievements = await Achievement.find();
-        if (masterAchievements.length < defaultAchievements.length) {
-            const masterOps = defaultAchievements.map(ach => ({
-                updateOne: {
-                    filter: { achievementId: ach.achievementId },
-                    update: { $set: ach },
-                    upsert: true
-                }
-            }));
-            await Achievement.bulkWrite(masterOps);
-            masterAchievements = await Achievement.find();
-        }
 
         // 2. Lấy "Tấm bảng vàng" duy nhất của User
         const userProgressDoc = await UserAchievement.findOne({ userId });
@@ -78,6 +66,7 @@ const getAchievements = async (req, res) => {
                 requirement: master.requirement,
                 xpReward: master.xpReward || 0,
                 coinReward: master.coinReward || 0,
+                isHidden: master.isHidden || 0,
                 currentProgress: progress ? progress.currentProgress : 0,
                 isUnlocked: progress ? progress.isUnlocked : false,
                 unlockedDate: progress ? progress.unlockedDate : null
