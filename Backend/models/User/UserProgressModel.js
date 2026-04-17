@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const userProgressSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     currentStreak: { type: Number, default: 0 },
-    lastActivityDate: { type: Date, default: null },
+    loginStreak: { type: Number, default: 0 },
+    learnStreak: { type: Number, default: 0 },
+    lastActivityDate: { type: Date, default: null }, // Kept for generic activity triggers
+    lastLoginDate: { type: Date, default: null },
+    lastLearnDate: { type: Date, default: null },
     totalXP: { type: Number, default: 0 },
     totalCoins: { type: Number, default: 0 },
     level: { type: Number, default: 1 },

@@ -26,13 +26,15 @@ const syncUserProgress = async (req, res) => {
     try {
         const userId = req.userId;
         const {
-            currentStreak, lastActivityDate, totalXP, totalCoins,
+            currentStreak, loginStreak, learnStreak,
+            lastActivityDate, lastLoginDate, lastLearnDate,
+            totalXP, totalCoins,
             level, selectedMascot, selectedMascotInstanceId, selectedOutfit,
             unlockedOutfits, userCharacter
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
-        
+
         const oldProgress = await UserProgress.findOne({ userId });
         const oldUnlocked = oldProgress ? (oldProgress.unlockedMascots || []) : [];
 
@@ -41,7 +43,11 @@ const syncUserProgress = async (req, res) => {
             {
                 $set: {
                     ...(currentStreak !== undefined && { currentStreak }),
+                    ...(loginStreak !== undefined && { loginStreak }),
+                    ...(learnStreak !== undefined && { learnStreak }),
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
+                    ...(lastLoginDate !== undefined && { lastLoginDate }),
+                    ...(lastLearnDate !== undefined && { lastLearnDate }),
                     ...(totalXP !== undefined && { totalXP }),
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
@@ -71,7 +77,7 @@ async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
                     { name: mascotIdOrName }
                 ]
             };
-            
+
             if (mongoose && mongoose.isValidObjectId && mongoose.isValidObjectId(mascotIdOrName)) {
                 query.$or.push({ _id: mascotIdOrName });
             }
