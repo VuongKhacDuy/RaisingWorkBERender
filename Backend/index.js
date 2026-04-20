@@ -43,6 +43,7 @@ const testRouter = require('./routes/testRoute');
 const petTemplateRouter = require('./routes/petTemplateRoute');
 const userPetRouter = require('./routes/userPetRoute');
 const configRouter = require('./routes/configRoute');
+const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
 const port = 3000;
 
 // ADD THIS
@@ -80,6 +81,7 @@ app.use('/api/test', testRouter);
 app.use('/api/pets/templates', petTemplateRouter);
 app.use('/api/pets/my', userPetRouter);
 app.use('/api/config', configRouter);
+app.use('/api/master-vocabulary', masterVocabularyRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
