@@ -231,16 +231,12 @@ const syncPets = async (req, res) => {
             }
             if (!template) continue;
 
-            // Tìm instanceId tồn tại (dùng nickname hoặc meta để match nếu cần, nhưng ios gửi uuid)
-            // Ở đây ta dùng mascotId + level hoặc gì đó nếu không có uuid trên server.
-            // Tuy nhiên, UserPet model hiện tại chưa có instanceId uuid. 
-            // Ta sẽ dùng userId + mascotId làm khóa đơn giản hoặc update model sau.
-            // Để đơn giản nhất, ta sẽ cập nhật pet hiện có của type đó hoặc tạo mới.
-
-            let userPet = await UserPet.findOne({ userId, petTemplateId: template._id });
+            // Tìm instanceId tồn tại (Dùng instanceId làm key chính để đồng bộ)
+            let userPet = await UserPet.findOne({ userId, instanceId });
 
             if (userPet) {
                 // Update
+                userPet.petTemplateId = template._id; // Cập nhật lại template nếu cần
                 userPet.level = level || userPet.level;
                 userPet.xp = xp !== undefined ? xp : userPet.xp;
                 userPet.hp = hp !== undefined ? hp : userPet.hp;
@@ -257,6 +253,7 @@ const syncPets = async (req, res) => {
                 // Create
                 userPet = new UserPet({
                     userId,
+                    instanceId, // Lưu instanceId từ App
                     petTemplateId: template._id,
                     level: level || 1,
                     xp: xp || 0,

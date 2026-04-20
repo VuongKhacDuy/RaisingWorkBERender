@@ -11,6 +11,8 @@ const userPetSchema = new mongoose.Schema({
         ref: "PetTemplate",
         required: true,
     },
+    // ID duy nhất từ phía App (UUID)
+    instanceId: { type: String, unique: true, sparse: true },
 
     // Tùy chỉnh của người dùng
     nickname: { type: String, default: '' },
