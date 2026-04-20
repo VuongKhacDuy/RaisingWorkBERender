@@ -195,6 +195,88 @@ const releasePet = async (req, res) => {
     }
 };
 
+const syncPets = async (req, res) => {
+    try {
+        const { pets } = req.body;
+        if (!pets || !Array.isArray(pets)) {
+            return res.status(400).json({ message: "Dữ liệu pet không hợp lệ (cần mảng)." });
+        }
+
+        const userId = req.userId;
+        const results = [];
+
+        for (const petData of pets) {
+            const {
+                instanceId,
+                mascotId,
+                level,
+                xp,
+                hp,
+                maxHp,
+                mana,
+                maxMana,
+                power,
+                defense,
+                speed,
+                isActive,
+                nickname
+            } = petData;
+
+            // Tìm template id từ mascotId (e.g. "pyro")
+            const template = await PetTemplate.findOne({ id: mascotId });
+            if (!template) continue;
+
+            // Tìm instanceId tồn tại (dùng nickname hoặc meta để match nếu cần, nhưng ios gửi uuid)
+            // Ở đây ta dùng mascotId + level hoặc gì đó nếu không có uuid trên server.
+            // Tuy nhiên, UserPet model hiện tại chưa có instanceId uuid. 
+            // Ta sẽ dùng userId + mascotId làm khóa đơn giản hoặc update model sau.
+            // Để đơn giản nhất, ta sẽ cập nhật pet hiện có của type đó hoặc tạo mới.
+
+            let userPet = await UserPet.findOne({ userId, petTemplateId: template._id });
+
+            if (userPet) {
+                // Update
+                userPet.level = level || userPet.level;
+                userPet.xp = xp !== undefined ? xp : userPet.xp;
+                userPet.hp = hp !== undefined ? hp : userPet.hp;
+                userPet.maxHp = maxHp !== undefined ? maxHp : userPet.maxHp;
+                userPet.mana = mana !== undefined ? mana : userPet.mana;
+                userPet.maxMana = maxMana !== undefined ? maxMana : userPet.maxMana;
+                userPet.power = power !== undefined ? power : userPet.power;
+                userPet.defense = defense !== undefined ? defense : userPet.defense;
+                userPet.speed = speed !== undefined ? speed : userPet.speed;
+                userPet.isActive = isActive !== undefined ? isActive : userPet.isActive;
+                userPet.nickname = nickname || userPet.nickname;
+                await userPet.save();
+            } else {
+                // Create
+                userPet = new UserPet({
+                    userId,
+                    petTemplateId: template._id,
+                    level: level || 1,
+                    xp: xp || 0,
+                    hp: hp || template.baseHp,
+                    maxHp: maxHp || template.baseHp,
+                    mana: mana || template.baseMana,
+                    maxMana: maxMana || template.baseMana,
+                    power: power || template.basePower,
+                    defense: defense || 10,
+                    speed: speed || 10,
+                    isActive: isActive || false,
+                    nickname: nickname || ''
+                });
+                await userPet.save();
+            }
+            results.push(userPet);
+        }
+
+        res.status(200).json({ success: true, message: "Đã đồng bộ danh sách pet.", count: results.length });
+    } catch (err) {
+        console.error("syncPets error:", err);
+        res.status(500).json({ message: "Lỗi server khi đồng bộ pet." });
+    }
+};
+
 module.exports = {
     catchPet,
     getMyPets,
@@ -203,4 +285,5 @@ module.exports = {
     levelUpPet,
     setNickname,
     releasePet,
+    syncPets
 };

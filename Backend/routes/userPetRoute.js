@@ -9,7 +9,11 @@ const {
     levelUpPet,
     setNickname,
     releasePet,
+    syncPets
 } = require("../controllers/userPetController");
+
+// Đồng bộ danh sách pet
+router.post("/sync", authenticate, syncPets);
 
 // Bắt pet mới
 router.post("/catch", authenticate, catchPet);
