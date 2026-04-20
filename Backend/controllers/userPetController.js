@@ -222,8 +222,13 @@ const syncPets = async (req, res) => {
                 nickname
             } = petData;
 
-            // Tìm template id từ mascotId (e.g. "pyro")
-            const template = await PetTemplate.findOne({ id: mascotId });
+            // Tìm template id từ mascotId
+            // iOS có thể gửi _id dạng string hoặc tên tùy vào phiên bản
+            let template = await PetTemplate.findById(mascotId);
+            if (!template) {
+                // Fallback tìm theo field name nếu mascotId là tên
+                template = await PetTemplate.findOne({ name: mascotId });
+            }
             if (!template) continue;
 
             // Tìm instanceId tồn tại (dùng nickname hoặc meta để match nếu cần, nhưng ios gửi uuid)
