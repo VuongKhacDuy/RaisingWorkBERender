@@ -6,7 +6,8 @@ const {
     createMasterVocabulary,
     updateMasterVocabulary,
     deleteMasterVocabulary,
-    bulkCreateMasterVocabulary
+    bulkCreateMasterVocabulary,
+    syncMasterVocabulary
 } = require('../controllers/masterVocabularyController');
 
 // Standard CRUD
@@ -14,6 +15,10 @@ router
     .route('/')
     .get(getAllMasterVocabulary)
     .post(createMasterVocabulary);
+
+router
+    .route('/sync')
+    .post(syncMasterVocabulary);
 
 router
     .route('/bulk')

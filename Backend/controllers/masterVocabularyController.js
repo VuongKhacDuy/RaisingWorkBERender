@@ -92,3 +92,33 @@ exports.bulkCreateMasterVocabulary = async (req, res) => {
         res.status(400).json({ success: false, error: error.message });
     }
 };
+
+// @desc    Sync (Upsert) multiple vocabulary items
+// @route   POST /api/master-vocabulary/sync
+// @access  Private/Admin
+exports.syncMasterVocabulary = async (req, res) => {
+    try {
+        const vocabularyList = req.body;
+        if (!Array.isArray(vocabularyList)) {
+            return res.status(400).json({ success: false, error: 'Data must be an array' });
+        }
+
+        const operations = vocabularyList.map(item => ({
+            updateOne: {
+                filter: { word: item.word },
+                update: { $set: item },
+                upsert: true
+            }
+        }));
+
+        const result = await MasterVocabulary.bulkWrite(operations);
+        res.status(200).json({
+            success: true,
+            message: 'Synchronization complete',
+            upsertedCount: result.upsertedCount,
+            modifiedCount: result.modifiedCount
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};

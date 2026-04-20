@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const MasterVocabularySchema = new mongoose.Schema({
-    word: { type: String, required: true, trim: true },
+    word: { type: String, required: true, unique: true, trim: true },
     ipa: { type: String, trim: true },
     level: {
         type: String,
