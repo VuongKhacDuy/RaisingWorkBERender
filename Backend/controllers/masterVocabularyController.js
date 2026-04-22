@@ -13,6 +13,9 @@ exports.getAllMasterVocabulary = async (req, res) => {
         if (search) {
             query.word = { $regex: search, $options: 'i' };
         }
+        if (req.query.since) {
+            query.updatedAt = { $gt: new Date(req.query.since) };
+        }
 
         const vocabulary = await MasterVocabulary.find(query).sort({ word: 1 });
         res.status(200).json({ success: true, count: vocabulary.length, data: vocabulary });

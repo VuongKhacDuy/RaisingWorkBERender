@@ -52,6 +52,11 @@ const getAllPetTemplates = async (req, res) => {
         if (req.query.element) filter.element = req.query.element;
         if (req.query.quality) filter.quality = req.query.quality;
 
+        // Delta Sync support
+        if (req.query.since) {
+            filter.updatedAt = { $gt: new Date(req.query.since) };
+        }
+
         const isSpawnQuery = req.query.spawn === 'true';
 
         if (req.query.habitat) {

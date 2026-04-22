@@ -87,7 +87,11 @@ const getAchievements = async (req, res) => {
 // GET /api/achievements/templates — List all master achievement templates
 const listTemplates = async (req, res) => {
     try {
-        const templates = await Achievement.find().sort({ category: 1, requirement: 1 });
+        const query = {};
+        if (req.query.since) {
+            query.updatedAt = { $gt: new Date(req.query.since) };
+        }
+        const templates = await Achievement.find(query).sort({ category: 1, requirement: 1 });
         res.status(200).json({ data: templates });
     } catch (error) {
         console.error("Error listing achievement templates:", error);
