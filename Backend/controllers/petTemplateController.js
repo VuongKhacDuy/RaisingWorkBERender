@@ -69,7 +69,7 @@ const getAllPetTemplates = async (req, res) => {
         if (isSpawnQuery && req.query.habitat) {
             const habitat = req.query.habitat;
             pets = pets.filter(pet => {
-                const rate = pet.habitatRates[habitat] || 0;
+                const rate = pet.habitatRates.get ? pet.habitatRates.get(habitat) : (pet.habitatRates[habitat] || 0);
                 // The "Dice Roll" logic
                 return Math.random() <= rate;
             });
