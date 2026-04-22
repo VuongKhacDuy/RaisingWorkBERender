@@ -31,6 +31,13 @@ const userPetSchema = new mongoose.Schema({
     defense: { type: Number, default: 10 },
     speed: { type: Number, default: 10 },
 
+    // Chỉ số gốc (Base stats — để tính toán level up)
+    baseHp: { type: Number, default: 100 },
+    baseMana: { type: Number, default: 50 },
+    basePower: { type: Number, default: 15 },
+    baseDefense: { type: Number, default: 10 },
+    baseSpeed: { type: Number, default: 10 },
+
     // Thời điểm bắt được
     caughtAt: { type: Date, default: Date.now },
 

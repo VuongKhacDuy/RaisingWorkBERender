@@ -246,6 +246,11 @@ const syncPets = async (req, res) => {
                 userPet.power = power !== undefined ? power : userPet.power;
                 userPet.defense = defense !== undefined ? defense : userPet.defense;
                 userPet.speed = speed !== undefined ? speed : userPet.speed;
+                userPet.baseHp = petData.baseHp !== undefined ? petData.baseHp : userPet.baseHp;
+                userPet.baseMana = petData.baseMana !== undefined ? petData.baseMana : userPet.baseMana;
+                userPet.basePower = petData.basePower !== undefined ? petData.basePower : userPet.basePower;
+                userPet.baseDefense = petData.baseDefense !== undefined ? petData.baseDefense : userPet.baseDefense;
+                userPet.baseSpeed = petData.baseSpeed !== undefined ? petData.baseSpeed : userPet.baseSpeed;
                 userPet.isActive = isActive !== undefined ? isActive : userPet.isActive;
                 userPet.nickname = nickname || userPet.nickname;
                 await userPet.save();
@@ -264,6 +269,11 @@ const syncPets = async (req, res) => {
                     power: power || template.basePower,
                     defense: defense || 10,
                     speed: speed || 10,
+                    baseHp: petData.baseHp || hp || template.baseHp,
+                    baseMana: petData.baseMana || mana || template.baseMana,
+                    basePower: petData.basePower || power || template.basePower,
+                    baseDefense: petData.baseDefense || defense || 10,
+                    baseSpeed: petData.baseSpeed || speed || 10,
                     isActive: isActive || false,
                     nickname: nickname || ''
                 });
