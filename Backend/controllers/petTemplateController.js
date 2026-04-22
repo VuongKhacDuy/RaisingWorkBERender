@@ -51,15 +51,30 @@ const getAllPetTemplates = async (req, res) => {
         const filter = {};
         if (req.query.element) filter.element = req.query.element;
         if (req.query.quality) filter.quality = req.query.quality;
+
+        const isSpawnQuery = req.query.spawn === 'true';
+
         if (req.query.habitat) {
             filter.habitats = req.query.habitat;
-            if (req.query.minRate) {
+            // Only apply hard minRate filter if it's NOT a spawn query
+            if (req.query.minRate && !isSpawnQuery) {
                 const rateKey = `habitatRates.${req.query.habitat}`;
                 filter[rateKey] = { $gte: parseFloat(req.query.minRate) };
             }
         }
 
-        const pets = await PetTemplate.find(filter).sort({ quality: 1, name: 1 });
+        let pets = await PetTemplate.find(filter).sort({ quality: 1, name: 1 });
+
+        // Probabilistic filter for spawning
+        if (isSpawnQuery && req.query.habitat) {
+            const habitat = req.query.habitat;
+            pets = pets.filter(pet => {
+                const rate = pet.habitatRates[habitat] || 0;
+                // The "Dice Roll" logic
+                return Math.random() <= rate;
+            });
+        }
+
         res.status(200).json({ data: pets, total: pets.length });
     } catch (err) {
         console.error("getAllPetTemplates error:", err);
