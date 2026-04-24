@@ -4,7 +4,7 @@ const rankMetricSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     category: {
         type: String,
-        enum: ['academic', 'pet_battle', 'game_activity'],
+        enum: ['academic', 'pet_battle', 'game_activity', 'overall'],
         required: true
     },
     dailyXP: { type: Number, default: 0 },

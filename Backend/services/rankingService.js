@@ -10,6 +10,25 @@ class RankingService {
      * Update user XP across all relevant timeframes
      */
     async updateXP(userId, category, amount) {
+        // 1. Update the specific category
+        const metric = await this._updateMetric(userId, category, amount);
+
+        // 2. Automatically update the 'overall' category (unless this is already the overall update)
+        if (category !== 'overall') {
+            await this._updateMetric(userId, 'overall', amount);
+        }
+
+        // 3. Also update active league participant score if exists
+        const isSunday = new Date().getDay() === 0;
+        await this.updateParticipantScore(userId, category, amount, isSunday);
+
+        return metric;
+    }
+
+    /**
+     * Internal helper to update a single metric entry
+     */
+    async _updateMetric(userId, category, amount) {
         let metric = await RankMetric.findOne({ userId, category });
         if (!metric) {
             metric = new RankMetric({ userId, category });
@@ -29,10 +48,6 @@ class RankingService {
         metric.lastUpdated = new Date();
 
         await metric.save();
-
-        // Also update active league participant score if exists
-        await this.updateParticipantScore(userId, category, amount, isSunday);
-
         return metric;
     }
 
