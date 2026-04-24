@@ -1,7 +1,87 @@
 const mongoose = require('mongoose');
 const UserProgress = require('../models/User/UserProgressModel');
+const CoinTransaction = require('../models/User/CoinTransactionModel');
 const UserPet = require('../models/Pet/UserPetModel');
 const PetTemplate = require('../models/Pet/PetTemplateModel');
+
+/**
+ * Atomic helper to update user coins and record a transaction ledger entry.
+ */
+const addCoinsWithTransaction = async (userId, amount, type, source, description) => {
+    let session = null;
+    try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+    } catch (e) {
+        console.warn('📡 [CoinLedger] Transactions not supported by this MongoDB environment. Falling back to non-atomic update.');
+        session = null;
+    }
+
+    try {
+        let progress = await UserProgress.findOne({ userId }).session(session);
+        if (!progress) {
+            progress = new UserProgress({ userId });
+        }
+
+        const oldBalance = progress.totalCoins || 0;
+        progress.totalCoins = oldBalance + amount;
+        await progress.save({ session });
+
+        const transaction = new CoinTransaction({
+            userId,
+            amount,
+            type,
+            source,
+            description,
+            balanceAfter: progress.totalCoins
+        });
+        await transaction.save({ session });
+
+        if (session) {
+            await session.commitTransaction();
+            session.endSession();
+        }
+        return { success: true, balance: progress.totalCoins };
+    } catch (error) {
+        if (session) {
+            try {
+                await session.abortTransaction();
+            } catch (abortErr) {
+                // Ignore abort errors if transaction already ended
+            }
+            session.endSession();
+        }
+        throw error;
+    }
+};
+
+// GET /api/user-progress/coins/history
+const getCoinHistory = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+
+        const transactions = await CoinTransaction.find({ userId })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+
+        const total = await CoinTransaction.countDocuments({ userId });
+
+        res.status(200).json({
+            data: transactions,
+            pagination: {
+                total,
+                page,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        console.error('[CoinHistory] fetch error:', error);
+        res.status(500).json({ message: 'Failed to fetch coin history.' });
+    }
+};
 
 // GET /api/user-progress
 const getUserProgress = async (req, res) => {
@@ -41,16 +121,18 @@ const syncUserProgress = async (req, res) => {
         const updated = await UserProgress.findOneAndUpdate(
             { userId },
             {
-                $set: {
+                $max: {
                     ...(currentStreak !== undefined && { currentStreak }),
                     ...(loginStreak !== undefined && { loginStreak }),
                     ...(learnStreak !== undefined && { learnStreak }),
-                    ...(lastActivityDate !== undefined && { lastActivityDate }),
-                    ...(lastLoginDate !== undefined && { lastLoginDate }),
-                    ...(lastLearnDate !== undefined && { lastLearnDate }),
                     ...(totalXP !== undefined && { totalXP }),
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
+                },
+                $set: {
+                    ...(lastActivityDate !== undefined && { lastActivityDate }),
+                    ...(lastLoginDate !== undefined && { lastLoginDate }),
+                    ...(lastLearnDate !== undefined && { lastLearnDate }),
                     ...(selectedMascot !== undefined && selectedMascot !== '' && { selectedMascot }),
                     ...(selectedMascotInstanceId !== undefined && selectedMascotInstanceId !== '' && { selectedMascotInstanceId }),
                     ...(selectedOutfit !== undefined && selectedOutfit !== '' && { selectedOutfit }),
@@ -106,4 +188,4 @@ async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
     }
 }
 
-module.exports = { getUserProgress, syncUserProgress };
+module.exports = { getUserProgress, syncUserProgress, getCoinHistory, addCoinsWithTransaction };
