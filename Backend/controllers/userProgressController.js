@@ -188,4 +188,33 @@ async function processNewMascots(userId, newlyUnlocked, selectedMascot) {
     }
 }
 
-module.exports = { getUserProgress, syncUserProgress, getCoinHistory, addCoinsWithTransaction };
+// POST /api/user-progress/coins/recover (Internal/Admin use)
+const recoverUserCoins = async (req, res) => {
+    try {
+        const { email, amount, reason } = req.body;
+        if (!email || !amount) {
+            return res.status(400).json({ message: 'Email and amount are required.' });
+        }
+
+        const User = mongoose.model('User');
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const result = await addCoinsWithTransaction(
+            user._id,
+            parseInt(amount),
+            'RECOVERY',
+            'admin_tool',
+            reason || 'Manual recovery via Admin tool'
+        );
+
+        res.status(200).json({ message: 'Coins recovered successfully.', data: result });
+    } catch (error) {
+        console.error('[CoinRecovery] error:', error);
+        res.status(500).json({ message: 'Failed to recover coins.' });
+    }
+};
+
+module.exports = { getUserProgress, syncUserProgress, getCoinHistory, addCoinsWithTransaction, recoverUserCoins };
