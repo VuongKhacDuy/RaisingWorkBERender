@@ -52,27 +52,71 @@ class RankingService {
     }
 
     async updateParticipantScore(userId, category, amount, isSunday) {
-        // For now, we assume 'academic' is the main league category
+        // For now, we assume 'academic' is the main league category for weekly leagues
         if (category !== 'academic') return;
 
         const currentWeek = this.getWeekNumber(new Date());
         const currentYear = new Date().getFullYear();
 
         // Find active group for the user
-        const participant = await LeagueParticipant.findOne({ userId })
+        let participant = await LeagueParticipant.findOne({ userId })
             .populate('groupId');
 
-        if (participant && participant.groupId.weekNumber === currentWeek && participant.groupId.year === currentYear) {
-            if (participant.groupId.type === 'finals' && isSunday) {
-                participant.sundayScore += amount;
-            } else if (participant.groupId.type === 'grand_final') {
-                if (!participant.isEliminated) {
-                    participant.grandFinalScore += amount;
-                }
-            } else {
-                participant.qualifierScore += amount;
-            }
+        // Check if participant exists and is for current week
+        if (participant && participant.groupId && participant.groupId.weekNumber === currentWeek && participant.groupId.year === currentYear) {
+            this._incrementParticipantScore(participant, amount, isSunday);
             await participant.save();
+        } else {
+            // AUTO-MATCHMAKING: Join Iron Tier
+            console.log(`[Ranking] Auto-matchmaking for User: ${userId}`);
+
+            // 1. Get Iron Tier ID
+            let ironTier = await LeagueTier.findOne({ name: /Iron/i });
+            if (!ironTier) {
+                // Fallback: Create Iron tier if missing
+                ironTier = await LeagueTier.create({ name: 'Iron', promotionThreshold: 10, demotionThreshold: 20 });
+            }
+
+            // 2. Find an active qualifier group for Iron tier that isn't full (e.g., < 30 people)
+            let group = await LeagueGroup.findOne({
+                tierId: ironTier._id,
+                type: 'qualifier',
+                status: 'active',
+                weekNumber: currentWeek,
+                year: currentYear
+            });
+
+            // If no group exists or is full, create a new one
+            if (!group) {
+                group = await LeagueGroup.create({
+                    tierId: ironTier._id,
+                    type: 'qualifier',
+                    weekNumber: currentWeek,
+                    year: currentYear,
+                    status: 'active'
+                });
+            }
+
+            // 3. Create participation
+            participant = new LeagueParticipant({
+                userId,
+                groupId: group._id,
+                qualifierScore: amount,
+                sundayScore: 0
+            });
+            await participant.save();
+        }
+    }
+
+    _incrementParticipantScore(participant, amount, isSunday) {
+        if (participant.groupId.type === 'finals' && isSunday) {
+            participant.sundayScore += amount;
+        } else if (participant.groupId.type === 'grand_final') {
+            if (!participant.isEliminated) {
+                participant.grandFinalScore += amount;
+            }
+        } else {
+            participant.qualifierScore += amount;
         }
     }
 
