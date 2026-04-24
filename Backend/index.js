@@ -44,6 +44,7 @@ const petTemplateRouter = require('./routes/petTemplateRoute');
 const userPetRouter = require('./routes/userPetRoute');
 const configRouter = require('./routes/configRoute');
 const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
+const rankingRouter = require('./routes/rankingRoute');
 const port = 3000;
 
 // ADD THIS
@@ -82,6 +83,7 @@ app.use('/api/pets/templates', petTemplateRouter);
 app.use('/api/pets/my', userPetRouter);
 app.use('/api/config', configRouter);
 app.use('/api/master-vocabulary', masterVocabularyRouter);
+app.use('/api/leaderboard', rankingRouter);
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
@@ -114,4 +116,30 @@ mongoose
     console.error('Error message:', err.message);
     process.exit(1);
   });
+
+// ===== RANKING AUTOMATION (Simple Cron Simulation) =====
+const rankingService = require('./services/rankingService');
+
+// Check every hour for resets
+setInterval(async () => {
+  const now = new Date();
+  const day = now.getDay(); // 0: Sun, 6: Sat
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+
+  // Saturday 21:59 - Close Qualifiers
+  if (day === 6 && hour === 21 && minute === 59) {
+    await rankingService.processSaturdayCloser();
+  }
+
+  // Sunday 22:59 - Reset Week
+  if (day === 0 && hour === 22 && minute === 59) {
+    await rankingService.processSundayReset();
+  }
+
+  // Daily 23:59 - Grand Final Eliminations
+  if (hour === 23 && minute === 59) {
+    await rankingService.processDailyElimination();
+  }
+}, 60000); // Check every minute
 
