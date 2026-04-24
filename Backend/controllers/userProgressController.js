@@ -126,10 +126,10 @@ const syncUserProgress = async (req, res) => {
                     ...(loginStreak !== undefined && { loginStreak }),
                     ...(learnStreak !== undefined && { learnStreak }),
                     ...(totalXP !== undefined && { totalXP }),
+                    ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
                 },
                 $set: {
-                    ...(totalCoins !== undefined && { totalCoins }),
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
                     ...(lastLoginDate !== undefined && { lastLoginDate }),
                     ...(lastLearnDate !== undefined && { lastLearnDate }),
