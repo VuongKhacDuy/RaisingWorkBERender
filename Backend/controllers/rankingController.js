@@ -90,3 +90,25 @@ exports.getRankStatus = async (req, res) => {
         res.status(500).json({ status: 'error', message: error.message });
     }
 };
+
+const rankingService = require('../services/rankingService');
+
+exports.updateXP = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { category = 'academic', amount = 0 } = req.body;
+
+        if (amount <= 0) {
+            return res.status(400).json({ status: 'error', message: 'Amount must be positive' });
+        }
+
+        const metric = await rankingService.updateXP(userId, category, parseInt(amount));
+
+        res.status(200).json({
+            status: 'success',
+            data: metric
+        });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
+};
