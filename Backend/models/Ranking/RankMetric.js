@@ -16,6 +16,9 @@ const rankMetricSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+// Unique index per user + category to prevent duplicates and speed up updates
+rankMetricSchema.index({ userId: 1, category: 1 }, { unique: true });
+
 // Index for performance in global leaderboards
 rankMetricSchema.index({ category: 1, weeklyXP: -1 });
 rankMetricSchema.index({ category: 1, quarterlyXP: -1 });

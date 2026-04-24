@@ -29,25 +29,32 @@ class RankingService {
      * Internal helper to update a single metric entry
      */
     async _updateMetric(userId, category, amount) {
-        let metric = await RankMetric.findOne({ userId, category });
-        if (!metric) {
-            metric = new RankMetric({ userId, category });
-        }
-
         const isSunday = new Date().getDay() === 0;
 
-        metric.dailyXP += amount;
-        if (isSunday) {
-            metric.sundayXP += amount;
-        } else {
-            metric.weeklyXP += amount;
-        }
-        metric.quarterlyXP += amount;
-        metric.yearlyXP += amount;
-        metric.totalXP += amount;
-        metric.lastUpdated = new Date();
+        const update = {
+            $inc: {
+                dailyXP: amount,
+                quarterlyXP: amount,
+                yearlyXP: amount,
+                totalXP: amount
+            },
+            $set: {
+                lastUpdated: new Date()
+            }
+        };
 
-        await metric.save();
+        if (isSunday) {
+            update.$inc.sundayXP = amount;
+        } else {
+            update.$inc.weeklyXP = amount;
+        }
+
+        const metric = await RankMetric.findOneAndUpdate(
+            { userId, category },
+            update,
+            { upsert: true, new: true }
+        );
+
         return metric;
     }
 
