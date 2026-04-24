@@ -77,13 +77,16 @@ exports.getRankStatus = async (req, res) => {
             return res.status(200).json({ status: 'success', data: null });
         }
 
+        const overallMetric = await RankMetric.findOne({ userId, category: 'overall' });
+
         res.status(200).json({
             status: 'success',
             data: {
                 tier: participant.groupId.tierId,
                 groupType: participant.groupId.type,
                 isFinalist: participant.isFinalist,
-                isEliminated: participant.isEliminated
+                isEliminated: participant.isEliminated,
+                overallScore: overallMetric ? overallMetric.totalXP : 0
             }
         });
     } catch (error) {
