@@ -31,12 +31,13 @@ class RankingService {
     async _updateMetric(userId, category, amount) {
         const isSunday = new Date().getDay() === 0;
 
+        // Use path notation for nested update
         const update = {
             $inc: {
-                dailyXP: amount,
-                quarterlyXP: amount,
-                yearlyXP: amount,
-                totalXP: amount
+                [`${category}.dailyXP`]: amount,
+                [`${category}.quarterlyXP`]: amount,
+                [`${category}.yearlyXP`]: amount,
+                [`${category}.totalXP`]: amount
             },
             $set: {
                 lastUpdated: new Date()
@@ -44,13 +45,13 @@ class RankingService {
         };
 
         if (isSunday) {
-            update.$inc.sundayXP = amount;
+            update.$inc[`${category}.sundayXP`] = amount;
         } else {
-            update.$inc.weeklyXP = amount;
+            update.$inc[`${category}.weeklyXP`] = amount;
         }
 
         const metric = await RankMetric.findOneAndUpdate(
-            { userId, category },
+            { userId }, // Now one record per userId
             update,
             { upsert: true, new: true }
         );

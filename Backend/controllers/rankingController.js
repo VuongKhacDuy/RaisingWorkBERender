@@ -5,7 +5,7 @@ const LeagueGroup = require('../models/Ranking/LeagueGroup');
 exports.getLeaderboard = async (req, res) => {
     try {
         const { category = 'academic', timeframe = 'weekly' } = req.query;
-        const userId = req.userId; // Fixed: use req.userId from authenticate middleware
+        const userId = req.userId;
 
         let leaderboard = [];
         let userPosition = null;
@@ -33,22 +33,27 @@ exports.getLeaderboard = async (req, res) => {
         } else {
             // Global leaderboards (Quarterly, Total)
             const scoreField = timeframe === 'quarterly' ? 'quarterlyXP' : 'totalXP';
-            const metrics = await RankMetric.find({ category })
+            const nestedPath = `${category}.${scoreField}`;
+
+            const metrics = await RankMetric.find({ [nestedPath]: { $gt: 0 } })
                 .populate('userId', 'name avatar')
-                .sort({ [scoreField]: -1 })
+                .sort({ [nestedPath]: -1 })
                 .limit(100);
 
             leaderboard = metrics.map((m, idx) => ({
                 rank: idx + 1,
-                name: m.userId.name,
-                score: m[scoreField],
-                isUser: m.userId._id.toString() === userId?.toString()
+                name: m.userId?.name || 'Unknown',
+                score: m[category] ? m[category][scoreField] : 0,
+                isUser: m.userId?._id.toString() === userId?.toString()
             }));
 
             if (userId) {
-                const userMetric = await RankMetric.findOne({ userId, category });
-                if (userMetric) {
-                    userPosition = { score: userMetric[scoreField], rank: null };
+                const userMetric = await RankMetric.findOne({ userId });
+                if (userMetric && userMetric[category]) {
+                    userPosition = {
+                        score: userMetric[category][scoreField],
+                        rank: null // Actual rank requires a separate count query
+                    };
                 }
             }
         }
@@ -69,14 +74,21 @@ exports.getLeaderboard = async (req, res) => {
 
 exports.getRankStatus = async (req, res) => {
     try {
-        const userId = req.userId; // Fixed: use req.userId
+        const userId = req.userId;
         const participant = await LeagueParticipant.findOne({ userId }).populate('groupId');
 
         if (!participant) {
-            return res.status(200).json({ status: 'success', data: null });
+            // Even if not in a league, we should return overall score if they have one
+            const overallMetric = await RankMetric.findOne({ userId });
+            return res.status(200).json({
+                status: 'success',
+                data: {
+                    overallScore: overallMetric?.overall?.totalXP || 0
+                }
+            });
         }
 
-        const overallMetric = await RankMetric.findOne({ userId, category: 'overall' });
+        const overallMetric = await RankMetric.findOne({ userId });
 
         res.status(200).json({
             status: 'success',
@@ -85,7 +97,7 @@ exports.getRankStatus = async (req, res) => {
                 groupType: participant.groupId.type,
                 isFinalist: participant.isFinalist,
                 isEliminated: participant.isEliminated,
-                overallScore: overallMetric ? overallMetric.totalXP : 0
+                overallScore: overallMetric?.overall?.totalXP || 0
             }
         });
     } catch (error) {
@@ -97,7 +109,7 @@ const rankingService = require('../services/rankingService');
 
 exports.updateXP = async (req, res) => {
     try {
-        const userId = req.userId; // Fixed: use req.userId
+        const userId = req.userId;
         const { category = 'academic', amount = 0 } = req.body;
 
         if (amount <= 0) {
