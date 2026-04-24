@@ -5,7 +5,7 @@ const LeagueGroup = require('../models/Ranking/LeagueGroup');
 exports.getLeaderboard = async (req, res) => {
     try {
         const { category = 'academic', timeframe = 'weekly' } = req.query;
-        const userId = req.user ? req.user.id : null; // Assuming auth middleware provides req.user
+        const userId = req.userId; // Fixed: use req.userId from authenticate middleware
 
         let leaderboard = [];
         let userPosition = null;
@@ -48,8 +48,7 @@ exports.getLeaderboard = async (req, res) => {
             if (userId) {
                 const userMetric = await RankMetric.findOne({ userId, category });
                 if (userMetric) {
-                    // Logic to find actual global rank if not in top 100
-                    userPosition = { score: userMetric[scoreField] };
+                    userPosition = { score: userMetric[scoreField], rank: null };
                 }
             }
         }
@@ -70,7 +69,7 @@ exports.getLeaderboard = async (req, res) => {
 
 exports.getRankStatus = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.userId; // Fixed: use req.userId
         const participant = await LeagueParticipant.findOne({ userId }).populate('groupId');
 
         if (!participant) {
@@ -98,7 +97,7 @@ const rankingService = require('../services/rankingService');
 
 exports.updateXP = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.userId; // Fixed: use req.userId
         const { category = 'academic', amount = 0 } = req.body;
 
         if (amount <= 0) {
