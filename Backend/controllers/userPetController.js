@@ -166,9 +166,13 @@ const levelUpPet = async (req, res) => {
 
         pet.xp -= required;
         pet.level += 1;
-        pet.hp = calcStat(template.baseHp, pet.level);
-        pet.mana = calcStat(template.baseMana, pet.level);
-        pet.power = calcStat(template.basePower, pet.level);
+        pet.maxHp = calcStat(pet.baseHp, pet.level);
+        pet.hp = pet.maxHp; // Heal on level up? Or keep ratio? Let's heal for now.
+        pet.maxMana = calcStat(pet.baseMana, pet.level);
+        pet.mana = pet.maxMana;
+        pet.power = calcStat(pet.basePower, pet.level);
+        pet.defense = calcStat(pet.baseDefense, pet.level);
+        pet.speed = calcStat(pet.baseSpeed, pet.level);
 
         await pet.save();
         res.status(200).json({
@@ -280,24 +284,34 @@ const syncPets = async (req, res) => {
                 await userPet.save();
             } else {
                 // Create
+                const level = petData.level || 1;
+                const bHp = petData.baseHp || rollIV(template.minHP, template.maxHP);
+                const bMana = petData.baseMana || rollIV(template.minMana, template.maxMana);
+                const bPower = petData.basePower || rollIV(template.minPower, template.maxPower);
+                const bDefense = petData.baseDefense || rollIV(template.minDefense, template.maxDefense);
+                const bSpeed = petData.baseSpeed || rollIV(template.minSpeed, template.maxSpeed);
+
                 userPet = new UserPet({
                     userId,
                     instanceId, // Lưu instanceId từ App
                     petTemplateId: template._id,
-                    level: level || 1,
+                    level: level,
                     xp: xp || 0,
-                    hp: hp || template.baseHp,
-                    maxHp: maxHp || template.baseHp,
-                    mana: mana || template.baseMana,
-                    maxMana: maxMana || template.baseMana,
-                    power: power || template.basePower,
-                    defense: defense || 10,
-                    speed: speed || 10,
-                    baseHp: petData.baseHp || hp || template.baseHp,
-                    baseMana: petData.baseMana || mana || template.baseMana,
-                    basePower: petData.basePower || power || template.basePower,
-                    baseDefense: petData.baseDefense || defense || 10,
-                    baseSpeed: petData.baseSpeed || speed || 10,
+
+                    baseHp: bHp,
+                    baseMana: bMana,
+                    basePower: bPower,
+                    baseDefense: bDefense,
+                    baseSpeed: bSpeed,
+
+                    hp: hp || calcStat(bHp, level),
+                    maxHp: maxHp || calcStat(bHp, level),
+                    mana: mana || calcStat(bMana, level),
+                    maxMana: maxMana || calcStat(bMana, level),
+                    power: power || calcStat(bPower, level),
+                    defense: defense || calcStat(bDefense, level),
+                    speed: speed || calcStat(bSpeed, level),
+
                     isActive: isActive || false,
                     nickname: nickname || ''
                 });

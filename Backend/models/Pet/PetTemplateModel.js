@@ -90,7 +90,7 @@ const petTemplateSchema = new mongoose.Schema({
     maxSpeed: { type: Number, default: 20 },
 
     // Giới hạn cấp & tuổi thọ (đơn vị: ngày)
-    maxLevel: { type: Number, default: 50 },
+    maxLevel: { type: Number, default: 100 },
     lifespan: { type: Number, default: 30 },
 
     // Tỉ lệ bắt (0.0 – 1.0)
