@@ -83,7 +83,9 @@ app.use('/api/pets/templates', petTemplateRouter);
 app.use('/api/pets/my', userPetRouter);
 app.use('/api/config', configRouter);
 app.use('/api/master-vocabulary', masterVocabularyRouter);
+app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
 app.use('/api/leaderboard', rankingRouter);
+app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found

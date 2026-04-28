@@ -8,7 +8,7 @@ const skillSchema = new mongoose.Schema({
 }, { _id: false });
 
 const petTemplateSchema = new mongoose.Schema({
-    name: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, unique: true },
     image: { type: String, required: true },      // URL hoặc asset name
     description: { type: String, default: "" },
 
@@ -68,10 +68,26 @@ const petTemplateSchema = new mongoose.Schema({
         default: {}
     },
 
-    // Chỉ số gốc (base stats — scale theo level khi người chơi sở hữu)
+    // Chỉ số gốc (Dải biến thiên cho từng loài)
     baseHp: { type: Number, required: true, min: 1 },
+    minHP: { type: Number, required: true, min: 1 },
+    maxHP: { type: Number, required: true, min: 1 },
+
     baseMana: { type: Number, required: true, min: 0 },
+    minMana: { type: Number, required: true, min: 0 },
+    maxMana: { type: Number, required: true, min: 0 },
+
     basePower: { type: Number, required: true, min: 1 },
+    minPower: { type: Number, required: true, min: 1 },
+    maxPower: { type: Number, required: true, min: 1 },
+
+    baseDefense: { type: Number, default: 10 },
+    minDefense: { type: Number, default: 5 },
+    maxDefense: { type: Number, default: 20 },
+
+    baseSpeed: { type: Number, default: 10 },
+    minSpeed: { type: Number, default: 5 },
+    maxSpeed: { type: Number, default: 20 },
 
     // Giới hạn cấp & tuổi thọ (đơn vị: ngày)
     maxLevel: { type: Number, default: 50 },

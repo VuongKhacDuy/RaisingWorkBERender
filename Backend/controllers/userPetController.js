@@ -7,6 +7,9 @@ const PetTemplate = require("../models/Pet/PetTemplateModel");
 // ──────────────────────────────────────────────────────────────
 const calcStat = (base, level) => Math.round(base + base * 0.1 * (level - 1));
 
+// Helper: roll số ngẫu nhiên trong khoảng [min, max]
+const rollIV = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
 // XP cần để level up lên level tiếp theo
 const xpRequiredForLevelUp = (level) => Math.floor(100 * Math.pow(level, 1.5));
 
@@ -32,14 +35,35 @@ const catchPet = async (req, res) => {
         }
 
         const level = 1;
+
+        // ROLL CHỈ SỐ CÁ THỂ (IV)
+        const individualBaseHp = rollIV(template.minHP, template.maxHP);
+        const individualBaseMana = rollIV(template.minMana, template.maxMana);
+        const individualBasePower = rollIV(template.minPower, template.maxPower);
+        const individualBaseDefense = rollIV(template.minDefense, template.maxDefense);
+        const individualBaseSpeed = rollIV(template.minSpeed, template.maxSpeed);
+
         const newPet = new UserPet({
             userId: req.userId,
             petTemplateId: template._id,
             level,
             xp: 0,
-            hp: calcStat(template.baseHp, level),
-            mana: calcStat(template.baseMana, level),
-            power: calcStat(template.basePower, level),
+
+            // Lưu Base riêng lẻ
+            baseHp: individualBaseHp,
+            baseMana: individualBaseMana,
+            basePower: individualBasePower,
+            baseDefense: individualBaseDefense,
+            baseSpeed: individualBaseSpeed,
+
+            // Tính chỉ số thực tế tại Level 1
+            hp: calcStat(individualBaseHp, level),
+            maxHp: calcStat(individualBaseHp, level),
+            mana: calcStat(individualBaseMana, level),
+            maxMana: calcStat(individualBaseMana, level),
+            power: calcStat(individualBasePower, level),
+            defense: calcStat(individualBaseDefense, level),
+            speed: calcStat(individualBaseSpeed, level),
         });
 
         await newPet.save();

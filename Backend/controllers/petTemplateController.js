@@ -5,40 +5,26 @@ const PetTemplate = require("../models/Pet/PetTemplateModel");
 // ──────────────────────────────────────────────────────────────
 const createPetTemplate = async (req, res) => {
     try {
-        const {
-            name, image, description,
-            element, quality,
-            baseHp, baseMana, basePower,
-            maxLevel, lifespan, catchRate,
-            skills, sprites,
-            gen, habitats, habitatRates,
-        } = req.body;
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ message: "Thiếu tên pet." });
 
-        if (!name || !image || !element || !baseHp || !baseMana || !basePower) {
-            return res.status(400).json({ message: "Thiếu trường bắt buộc: name, image, element, baseHp, baseMana, basePower." });
-        }
+        const updateData = { ...req.body };
 
-        if (!Array.isArray(element) || element.length < 1 || element.length > 3) {
-            return res.status(400).json({ message: "Phải có từ 1 đến 3 hệ nguyên tố." });
-        }
+        // Sử dụng findOneAndUpdate với upsert: true để tránh tạo trùng tên
+        const pet = await PetTemplate.findOneAndUpdate(
+            { name: name.trim() },
+            { $set: updateData },
+            { upsert: true, new: true, runValidators: true }
+        );
 
-        const pet = new PetTemplate({
-            name, image, description,
-            element, quality,
-            baseHp, baseMana, basePower,
-            maxLevel, lifespan, catchRate,
-            skills: skills || [],
-            sprites: sprites || {},
-            gen: gen || 1,
-            habitats: habitats || ["plains"],
-            habitatRates: habitatRates || {},
+        const isNew = pet.createdAt.getTime() === pet.updatedAt.getTime();
+        res.status(isNew ? 201 : 200).json({
+            message: isNew ? "Tạo pet template thành công." : "Cập nhật pet template thành công.",
+            data: pet
         });
-
-        await pet.save();
-        res.status(201).json({ message: "Tạo pet template thành công.", data: pet });
     } catch (err) {
         console.error("createPetTemplate error:", err);
-        res.status(500).json({ message: "Lỗi server khi tạo pet template." });
+        res.status(500).json({ message: "Lỗi server khi tạo/cập nhật pet template." });
     }
 };
 
