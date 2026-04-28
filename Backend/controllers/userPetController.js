@@ -19,7 +19,7 @@ const xpRequiredForLevelUp = (level) => Math.floor(100 * Math.pow(level, 1.5));
 // ──────────────────────────────────────────────────────────────
 const catchPet = async (req, res) => {
     try {
-        const { petTemplateId } = req.body;
+        const { petTemplateId, instanceId, baseHp, baseMana, basePower, baseDefense, baseSpeed } = req.body;
         if (!petTemplateId) {
             return res.status(400).json({ message: "Thiếu petTemplateId." });
         }
@@ -36,16 +36,18 @@ const catchPet = async (req, res) => {
 
         const level = 1;
 
-        // ROLL CHỈ SỐ CÁ THỂ (IV)
-        const individualBaseHp = rollIV(template.minHP, template.maxHP);
-        const individualBaseMana = rollIV(template.minMana, template.maxMana);
-        const individualBasePower = rollIV(template.minPower, template.maxPower);
-        const individualBaseDefense = rollIV(template.minDefense, template.maxDefense);
-        const individualBaseSpeed = rollIV(template.minSpeed, template.maxSpeed);
+        // Ưu tiên dùng IVs từ App (đã roll lúc xem thông tin pet)
+        // Nếu App không gửi IVs thì server tự roll
+        const individualBaseHp = (baseHp != null) ? baseHp : rollIV(template.minHP, template.maxHP);
+        const individualBaseMana = (baseMana != null) ? baseMana : rollIV(template.minMana, template.maxMana);
+        const individualBasePower = (basePower != null) ? basePower : rollIV(template.minPower, template.maxPower);
+        const individualBaseDefense = (baseDefense != null) ? baseDefense : rollIV(template.minDefense, template.maxDefense);
+        const individualBaseSpeed = (baseSpeed != null) ? baseSpeed : rollIV(template.minSpeed, template.maxSpeed);
 
         const newPet = new UserPet({
             userId: req.userId,
             petTemplateId: template._id,
+            instanceId: instanceId, // Lưu ID duy nhất từ App
             level,
             xp: 0,
 
