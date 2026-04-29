@@ -78,16 +78,16 @@ class RankingService {
             // AUTO-MATCHMAKING: Join Iron Tier
             console.log(`[Ranking] Auto-matchmaking for User: ${userId}`);
 
-            // 1. Get Iron Tier ID
-            let ironTier = await LeagueTier.findOne({ name: /Iron/i });
-            if (!ironTier) {
-                // Fallback: Create Iron tier if missing
-                ironTier = await LeagueTier.create({ name: 'Iron', promotionThreshold: 10, demotionThreshold: 20 });
+            // 1. Get Initiator Tier ID (formerly Iron)
+            let initiatorTier = await LeagueTier.findOne({ name: /Initiator/i });
+            if (!initiatorTier) {
+                // Fallback: Create Initiator tier if missing
+                initiatorTier = await LeagueTier.create({ name: 'Initiator', level: 1, promotionThreshold: 10, demotionThreshold: 20 });
             }
 
-            // 2. Find an active qualifier group for Iron tier that isn't full (e.g., < 30 people)
+            // 2. Find an active qualifier group for Initiator tier that isn't full (e.g., < 30 people)
             let group = await LeagueGroup.findOne({
-                tierId: ironTier._id,
+                tierId: initiatorTier._id,
                 type: 'qualifier',
                 status: 'active',
                 weekNumber: currentWeek,
@@ -97,7 +97,7 @@ class RankingService {
             // If no group exists or is full, create a new one
             if (!group) {
                 group = await LeagueGroup.create({
-                    tierId: ironTier._id,
+                    tierId: initiatorTier._id,
                     type: 'qualifier',
                     weekNumber: currentWeek,
                     year: currentYear,
