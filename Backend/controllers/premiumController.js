@@ -86,11 +86,19 @@ const getEntitlements = async (req, res) => {
     const userId = req.userId; // set by authenticate middleware
 
     const user = await User.findById(userId).select(
-      "isPremium premiumExpiresAt"
+      "isPremium premiumExpiresAt role"
     );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Admin accounts get permanent premium access
+    if (user.role === "admin") {
+      return res.status(200).json({
+        premium: true,
+        expirationDate: null,
+      });
     }
 
     // Auto-expire: if premiumExpiresAt is in the past, revoke

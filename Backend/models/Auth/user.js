@@ -69,6 +69,13 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+
+  // "user" | "admin" — admin gets permanent premium access
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
+  },
 });
 
 const User = mongoose.model("User", userSchema);
