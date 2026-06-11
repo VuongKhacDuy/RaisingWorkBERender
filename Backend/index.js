@@ -45,6 +45,7 @@ const userPetRouter = require('./routes/userPetRoute');
 const configRouter = require('./routes/configRoute');
 const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
 const rankingRouter = require('./routes/rankingRoute');
+const premiumRouter = require('./routes/premiumRoute');
 const port = 3000;
 
 // ADD THIS
@@ -86,6 +87,7 @@ app.use('/api/master-vocabulary', masterVocabularyRouter);
 app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
 app.use('/api/leaderboard', rankingRouter);
 app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
+app.use('/api', premiumRouter); // Premium: /api/content/catalog, /api/iap/apple/transactions, /api/users/me/entitlements
 
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
