@@ -9,5 +9,7 @@ router.get('/', newsController.getAllNews),
 router.get('/:id', newsController.getNews),
 
 router.post('/delete/:id', newsController.deleteNews)
+router.post('/:id', newsController.updateNews)
+router.put('/:id', newsController.updateNews)
 
 module.exports = router

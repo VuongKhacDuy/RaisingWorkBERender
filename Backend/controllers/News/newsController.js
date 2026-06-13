@@ -37,5 +37,14 @@ module.exports = {
       res.status(500).json("failed to detele the topic");
     }
   },
+
+  updateNews: async (req, res) => {
+    try {
+      const updatedNews = await News.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      res.status(200).json(updatedNews);
+    } catch (error) {
+      res.status(500).json("Failed to update the News");
+    }
+  },
   
 };
