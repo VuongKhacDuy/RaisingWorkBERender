@@ -14,6 +14,7 @@ const NewsSchema = new mongoose.Schema({
   lesson_number: { type: Number },
   slug: { type: String },
   status: { type: String, default: "published" },
+  accessLevel: { type: String, enum: ["free", "premium"], default: "free" },
   
   language_pair: {
     source: { type: String, default: "en" },
