@@ -15,6 +15,7 @@ const userProgressSchema = new mongoose.Schema({
     selectedMascotInstanceId: { type: String, default: null },
     selectedOutfit: { type: String, default: null },
     unlockedOutfits: { type: [String], default: [] },
+    hasCaughtFirstPet: { type: Boolean, default: false },
     userCharacter: { type: String, default: null }
 }, { timestamps: true });
 

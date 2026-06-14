@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const UserPet = require("../models/Pet/UserPetModel");
 const PetTemplate = require("../models/Pet/PetTemplateModel");
+const UserProgress = require("../models/User/UserProgressModel");
 
 // ──────────────────────────────────────────────────────────────
 // Helper: tính chỉ số dựa trên base + level
@@ -69,6 +71,11 @@ const catchPet = async (req, res) => {
         });
 
         await newPet.save();
+        await UserProgress.findOneAndUpdate(
+            { userId: req.userId },
+            { $set: { hasCaughtFirstPet: true } },
+            { upsert: true }
+        );
 
         // Populate thông tin template để trả về đầy đủ
         const populated = await UserPet.findById(newPet._id).populate("petTemplateId");
@@ -216,7 +223,14 @@ const setNickname = async (req, res) => {
 // ──────────────────────────────────────────────────────────────
 const releasePet = async (req, res) => {
     try {
-        const pet = await UserPet.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+        const identifier = req.params.id;
+        const identifierFilter = mongoose.Types.ObjectId.isValid(identifier)
+            ? { $or: [{ _id: identifier }, { instanceId: identifier }] }
+            : { instanceId: identifier };
+        const pet = await UserPet.findOneAndDelete({
+            userId: req.userId,
+            ...identifierFilter
+        });
         if (!pet) return res.status(404).json({ message: "Không tìm thấy pet." });
         res.status(200).json({ message: "Đã thả pet.", data: pet });
     } catch (err) {

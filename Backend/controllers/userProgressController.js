@@ -110,7 +110,7 @@ const syncUserProgress = async (req, res) => {
             lastActivityDate, lastLoginDate, lastLearnDate,
             totalXP, totalCoins,
             level, selectedMascot, selectedMascotInstanceId, selectedOutfit,
-            unlockedOutfits, userCharacter
+            unlockedOutfits, userCharacter, hasCaughtFirstPet
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -138,6 +138,7 @@ const syncUserProgress = async (req, res) => {
                     ...(selectedOutfit !== undefined && selectedOutfit !== '' && { selectedOutfit }),
                     ...(unlockedOutfits !== undefined && { unlockedOutfits }),
                     ...(userCharacter !== undefined && userCharacter !== '' && { userCharacter }),
+                    ...(hasCaughtFirstPet === true && { hasCaughtFirstPet: true }),
                 }
             },
             { upsert: true, new: true }
