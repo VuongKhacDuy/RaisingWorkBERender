@@ -1,5 +1,6 @@
 const ContentPackage = require("../models/ContentPackageModel");
 const User = require("../models/Auth/user");
+const { userHasPremiumAccess } = require("../utils/premiumAccess");
 
 // ─────────────────────────────────────────────
 // GET /api/content/catalog   (public — no auth)
@@ -26,6 +27,34 @@ const getCatalog = async (req, res) => {
   } catch (error) {
     console.error("[getCatalog] Error:", error);
     return res.status(500).json({ message: "Failed to fetch catalog" });
+  }
+};
+
+const getPackageById = async (req, res) => {
+  try {
+    const contentPackage = await ContentPackage.findById(req.params.id).lean();
+    if (!contentPackage) {
+      return res.status(404).json({ message: "Content package not found" });
+    }
+
+    const hasPremium = await userHasPremiumAccess(req);
+    const locked = contentPackage.accessLevel === "premium" && !contentPackage.isPreview && !hasPremium;
+
+    return res.status(200).json({
+      data: {
+        id: contentPackage._id.toString(),
+        title: contentPackage.title,
+        description: contentPackage.description,
+        coverImage: contentPackage.coverImage ?? null,
+        type: contentPackage.type,
+        accessLevel: contentPackage.accessLevel,
+        isPreview: contentPackage.isPreview,
+        locked,
+      },
+    });
+  } catch (error) {
+    console.error("[getPackageById] Error:", error);
+    return res.status(500).json({ message: "Failed to fetch content package" });
   }
 };
 
@@ -127,6 +156,7 @@ const getEntitlements = async (req, res) => {
 
 module.exports = {
   getCatalog,
+  getPackageById,
   verifyAppleTransaction,
   getEntitlements,
 };

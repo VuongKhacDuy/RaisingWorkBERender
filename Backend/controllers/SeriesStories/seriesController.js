@@ -1,6 +1,27 @@
 const Series = require("../../models/SeriesStories/SeriesModel");
 const Episode = require("../../models/SeriesStories/EpisodeModel");
 const ImageBase64 = require("../../models/ImageBase64");
+const { userHasPremiumAccess } = require("../../utils/premiumAccess");
+
+function toPreviewSeries(series) {
+  const raw = typeof series.toObject === "function" ? series.toObject() : series;
+  return {
+    _id: raw._id,
+    title: raw.title,
+    description: raw.description,
+    author: raw.author,
+    genre: raw.genre,
+    coverImage: raw.coverImage,
+    status: raw.status,
+    accessLevel: raw.accessLevel,
+    totalEpisodes: raw.totalEpisodes,
+    rating: raw.rating,
+    tags: raw.tags,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    locked: raw.accessLevel === "premium"
+  };
+}
 
 module.exports = {
   // Tạo series mới
@@ -34,6 +55,7 @@ module.exports = {
         query.updatedAt = { $gt: new Date(req.query.since) };
       }
 
+      const hasPremium = await userHasPremiumAccess(req);
       const series = await Series.find(query)
         .sort({ updatedAt: -1 })
         .skip(skip)
@@ -44,7 +66,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        data: series,
+        data: series.map((item) => item.accessLevel === "premium" && !hasPremium ? toPreviewSeries(item) : item),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -78,13 +100,28 @@ module.exports = {
       // Lấy danh sách episodes của series này
       const episodes = await Episode.find({ seriesId: req.params.id })
         .sort({ episodeNumber: 1 })
-        .select('episodeNumber title summary publishedAt isPublished readCount likeCount');
+        .select('episodeNumber title summary publishedAt isPublished accessLevel readCount likeCount coverImage');
+
+      const hasPremium = await userHasPremiumAccess(req);
+      const lockedSeries = series.accessLevel === "premium" && !hasPremium;
 
       res.status(200).json({
         success: true,
         data: {
-          series,
-          episodes
+          series: lockedSeries ? toPreviewSeries(series) : series,
+          episodes: lockedSeries ? episodes.map((episode) => ({
+            _id: episode._id,
+            episodeNumber: episode.episodeNumber,
+            title: episode.title,
+            summary: episode.summary,
+            publishedAt: episode.publishedAt,
+            isPublished: episode.isPublished,
+            accessLevel: episode.accessLevel,
+            readCount: episode.readCount,
+            likeCount: episode.likeCount,
+            coverImage: episode.coverImage,
+            locked: true
+          })) : episodes
         }
       });
     } catch (error) {

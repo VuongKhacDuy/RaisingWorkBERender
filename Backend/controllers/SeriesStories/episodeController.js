@@ -1,6 +1,7 @@
 const Episode = require("../../models/SeriesStories/EpisodeModel");
 const Series = require("../../models/SeriesStories/SeriesModel");
 const ImageBase64 = require("../../models/ImageBase64");
+const { userHasPremiumAccess } = require("../../utils/premiumAccess");
 const {
   migrateLegacyContent,
   createDefaultContentBlocks,
@@ -23,6 +24,32 @@ const processContentBlocks = (contentBlocks) => {
     return block;
   });
 };
+
+function isPremiumEpisode(episode) {
+  const raw = typeof episode.toObject === "function" ? episode.toObject() : episode;
+  return raw.accessLevel === "premium" || raw.seriesId?.accessLevel === "premium";
+}
+
+function toPreviewEpisode(episode) {
+  const raw = typeof episode.toObject === "function" ? episode.toObject() : episode;
+  return {
+    _id: raw._id,
+    seriesId: raw.seriesId,
+    episodeNumber: raw.episodeNumber,
+    title: raw.title,
+    summary: raw.summary,
+    duration: raw.duration,
+    publishedAt: raw.publishedAt,
+    isPublished: raw.isPublished,
+    accessLevel: raw.accessLevel,
+    readCount: raw.readCount,
+    likeCount: raw.likeCount,
+    coverImage: raw.coverImage,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    locked: isPremiumEpisode(raw)
+  };
+}
 
 module.exports = {
   // Tạo episode mới
@@ -146,8 +173,9 @@ module.exports = {
         query.updatedAt = { $gt: new Date(req.query.since) };
       }
 
+      const hasPremium = await userHasPremiumAccess(req);
       const episodes = await Episode.find(query)
-        .populate('seriesId', 'title author')
+        .populate('seriesId', 'title author accessLevel')
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -156,7 +184,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        data: episodes,
+        data: episodes.map((episode) => isPremiumEpisode(episode) && !hasPremium ? toPreviewEpisode(episode) : episode),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -182,7 +210,9 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
+      const hasPremium = await userHasPremiumAccess(req);
       const episodes = await Episode.find({ seriesId })
+        .populate('seriesId', 'title author accessLevel')
         .sort({ episodeNumber: 1 })
         .skip(skip)
         .limit(limit);
@@ -191,7 +221,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        data: episodes,
+        data: episodes.map((episode) => isPremiumEpisode(episode) && !hasPremium ? toPreviewEpisode(episode) : episode),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -213,12 +243,19 @@ module.exports = {
   getEpisodeById: async (req, res) => {
     try {
       const episode = await Episode.findById(req.params.id)
-        .populate('seriesId', 'title author status');
+        .populate('seriesId', 'title author status accessLevel');
 
       if (!episode) {
         return res.status(404).json({
           success: false,
           message: "Episode not found"
+        });
+      }
+
+      if (isPremiumEpisode(episode) && !(await userHasPremiumAccess(req))) {
+        return res.status(200).json({
+          success: true,
+          data: toPreviewEpisode(episode)
         });
       }
 

@@ -26,6 +26,11 @@ const SeriesSchema = new mongoose.Schema({
     enum: ['ongoing', 'completed', 'paused'], 
     default: 'ongoing' 
   },
+  accessLevel: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
+  },
   totalEpisodes: { 
     type: Number, 
     default: 0 

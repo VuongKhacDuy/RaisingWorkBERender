@@ -67,6 +67,11 @@ const EpisodeSchema = new mongoose.Schema({
     type: Boolean, 
     default: false 
   },
+  accessLevel: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
+  },
   readCount: { 
     type: Number, 
     default: 0 
