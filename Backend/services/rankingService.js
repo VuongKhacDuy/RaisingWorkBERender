@@ -5,6 +5,8 @@ const LeagueTier = require('../models/Ranking/LeagueTier');
 const RankingHistory = require('../models/Ranking/RankingHistory');
 const mongoose = require('mongoose');
 
+const MAX_GROUP_SIZE = 30;
+
 class RankingService {
     /**
      * Update user XP across all relevant timeframes
@@ -68,36 +70,41 @@ class RankingService {
 
         // Find active group for the user
         let participant = await LeagueParticipant.findOne({ userId })
-            .populate('groupId');
+            .populate('groupId')
+            .sort({ updatedAt: -1 });
 
         // Check if participant exists and is for current week
-        if (participant && participant.groupId && participant.groupId.weekNumber === currentWeek && participant.groupId.year === currentYear) {
+        if (participant && participant.groupId && participant.groupId.weekNumber === currentWeek && participant.groupId.year === currentYear && participant.groupId.status !== 'completed') {
             this._incrementParticipantScore(participant, amount, isSunday);
             await participant.save();
         } else {
-            // AUTO-MATCHMAKING: Join Iron Tier
+            // AUTO-MATCHMAKING: Join user's current tier for this week
             console.log(`[Ranking] Auto-matchmaking for User: ${userId}`);
 
-            // 1. Get Initiator Tier ID (formerly Iron)
-            let initiatorTier = await LeagueTier.findOne({ name: /Initiator/i });
-            if (!initiatorTier) {
-                // Fallback: Create Initiator tier if missing
-                initiatorTier = await LeagueTier.create({ name: 'Initiator', level: 1, promotionThreshold: 10, demotionThreshold: 20 });
-            }
+            const tier = await this.resolveTierForUser(userId);
 
-            // 2. Find an active qualifier group for Initiator tier that isn't full (e.g., < 30 people)
-            let group = await LeagueGroup.findOne({
-                tierId: initiatorTier._id,
+            // Find an active qualifier group for the tier that is not full.
+            const candidateGroups = await LeagueGroup.find({
+                tierId: tier._id,
                 type: 'qualifier',
                 status: 'active',
                 weekNumber: currentWeek,
                 year: currentYear
             });
+            let group = null;
+
+            for (const candidate of candidateGroups) {
+                const count = await LeagueParticipant.countDocuments({ groupId: candidate._id });
+                if (count < MAX_GROUP_SIZE) {
+                    group = candidate;
+                    break;
+                }
+            }
 
             // If no group exists or is full, create a new one
             if (!group) {
                 group = await LeagueGroup.create({
-                    tierId: initiatorTier._id,
+                    tierId: tier._id,
                     type: 'qualifier',
                     weekNumber: currentWeek,
                     year: currentYear,
@@ -109,6 +116,7 @@ class RankingService {
             participant = new LeagueParticipant({
                 userId,
                 groupId: group._id,
+                currTierId: tier._id,
                 qualifierScore: amount,
                 sundayScore: 0
             });
@@ -142,19 +150,7 @@ class RankingService {
             const tier = await LeagueTier.findById(group.tierId);
             const finalistCount = tier.promotionThreshold || 12;
 
-            // Mark finalists
-            for (let i = 0; i < participants.length; i++) {
-                if (i < finalistCount) {
-                    participants[i].isFinalist = true;
-                    // Note: sundayScore starts at 0 as per spec
-                }
-                await participants[i].save();
-            }
-
-            group.status = 'locked';
-            await group.save();
-
-            // Create a Finals group for Sunday
+            // Create a Finals group for Sunday before moving finalists.
             const finalsGroup = new LeagueGroup({
                 tierId: group.tierId,
                 type: 'finals',
@@ -164,8 +160,25 @@ class RankingService {
             });
             await finalsGroup.save();
 
-            // Logic to move finalists to the new group could go here, 
-            // or we just query participants with isFinalist = true and finalsGroup type
+            // Mark finalists
+            for (let i = 0; i < participants.length; i++) {
+                if (i < finalistCount) {
+                    await LeagueParticipant.create({
+                        userId: participants[i].userId,
+                        groupId: finalsGroup._id,
+                        currTierId: group.tierId,
+                        qualifierScore: participants[i].qualifierScore,
+                        sundayScore: 0,
+                        isFinalist: true
+                    });
+                } else {
+                    participants[i].isFinalist = false;
+                    await participants[i].save();
+                }
+            }
+
+            group.status = 'locked';
+            await group.save();
         }
     }
 
@@ -208,9 +221,11 @@ class RankingService {
 
             const tier = await LeagueTier.findById(group.tierId);
             const promotionCount = tier.promotionThreshold || 5;
+            const nextTier = await LeagueTier.findOne({ level: tier.level + 1 });
 
             for (let i = 0; i < participants.length; i++) {
                 const isPromoted = i < promotionCount;
+                const finalTierId = isPromoted && nextTier ? nextTier._id : group.tierId;
 
                 // Save to history
                 await RankingHistory.create({
@@ -223,7 +238,8 @@ class RankingService {
                     isPromoted: isPromoted
                 });
 
-                // Update user logic for promotion could happen here
+                participants[i].currTierId = finalTierId;
+                await participants[i].save();
             }
 
             group.status = 'completed';
@@ -232,6 +248,42 @@ class RankingService {
 
         // Reset metrics for new week
         await RankMetric.updateMany({}, { dailyXP: 0, weeklyXP: 0, sundayXP: 0 });
+    }
+
+    async resolveTierForUser(userId) {
+        const latestParticipant = await LeagueParticipant.findOne({ userId })
+            .populate('currTierId')
+            .populate({
+                path: 'groupId',
+                populate: { path: 'tierId' }
+            })
+            .sort({ updatedAt: -1 });
+
+        if (latestParticipant?.currTierId) {
+            return latestParticipant.currTierId;
+        }
+
+        if (latestParticipant?.groupId?.tierId) {
+            return latestParticipant.groupId.tierId;
+        }
+
+        const latestHistory = await RankingHistory.findOne({ userId })
+            .populate('tierId')
+            .sort({ createdAt: -1 });
+
+        if (latestHistory?.tierId) {
+            if (latestHistory.isPromoted) {
+                const nextTier = await LeagueTier.findOne({ level: latestHistory.tierId.level + 1 });
+                if (nextTier) return nextTier;
+            }
+            return latestHistory.tierId;
+        }
+
+        let initiatorTier = await LeagueTier.findOne({ name: /Initiator/i }) || await LeagueTier.findOne({ level: 1 });
+        if (!initiatorTier) {
+            initiatorTier = await LeagueTier.create({ name: 'Initiator', level: 1, promotionThreshold: 10, demotionThreshold: 0 });
+        }
+        return initiatorTier;
     }
 
     /**

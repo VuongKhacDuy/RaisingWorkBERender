@@ -5,8 +5,8 @@ const rankingController = require('../controllers/rankingController');
 
 const authenticate = require('../middleware/authenticate');
 
-// Public leaderboard access
-router.get('/', rankingController.getLeaderboard);
+// Leaderboard uses the authenticated user's league group for weekly ranking.
+router.get('/', authenticate, rankingController.getLeaderboard);
 
 // User specific rank status (Needs auth)
 router.get('/status', authenticate, rankingController.getRankStatus);
