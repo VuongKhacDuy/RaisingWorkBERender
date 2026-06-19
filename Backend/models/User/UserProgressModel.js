@@ -16,6 +16,18 @@ const userProgressSchema = new mongoose.Schema({
     selectedOutfit: { type: String, default: null },
     unlockedOutfits: { type: [String], default: [] },
     hasCaughtFirstPet: { type: Boolean, default: false },
+    smallPotionCount: { type: Number, default: 0 },
+    reviewStreak: { type: Number, default: 0 },
+    reviewLastReviewDate: { type: Date, default: null },
+    reviewSessionRecords: {
+        type: [{
+            date: { type: Date, required: true },
+            reviewedCount: { type: Number, default: 0 },
+            correctCount: { type: Number, default: 0 },
+            attemptCount: { type: Number, default: 0 }
+        }],
+        default: []
+    },
     userCharacter: { type: String, default: null }
 }, { timestamps: true });
 

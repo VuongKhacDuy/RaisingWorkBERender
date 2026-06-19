@@ -110,7 +110,8 @@ const syncUserProgress = async (req, res) => {
             lastActivityDate, lastLoginDate, lastLearnDate,
             totalXP, totalCoins,
             level, selectedMascot, selectedMascotInstanceId, selectedOutfit,
-            unlockedOutfits, userCharacter, hasCaughtFirstPet
+            unlockedOutfits, userCharacter, hasCaughtFirstPet,
+            smallPotionCount, reviewStreak, reviewLastReviewDate, reviewSessionRecords
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -128,6 +129,8 @@ const syncUserProgress = async (req, res) => {
                     ...(totalXP !== undefined && { totalXP }),
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
+                    ...(smallPotionCount !== undefined && { smallPotionCount }),
+                    ...(reviewStreak !== undefined && { reviewStreak }),
                 },
                 $set: {
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
@@ -139,6 +142,8 @@ const syncUserProgress = async (req, res) => {
                     ...(unlockedOutfits !== undefined && { unlockedOutfits }),
                     ...(userCharacter !== undefined && userCharacter !== '' && { userCharacter }),
                     ...(hasCaughtFirstPet === true && { hasCaughtFirstPet: true }),
+                    ...(reviewLastReviewDate !== undefined && { reviewLastReviewDate }),
+                    ...(Array.isArray(reviewSessionRecords) && { reviewSessionRecords: reviewSessionRecords.slice(-120) }),
                 }
             },
             { upsert: true, new: true }

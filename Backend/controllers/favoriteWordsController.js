@@ -3,7 +3,7 @@ const FavoriteWord = require("../models/FavoriteWords/FavoriteWords");
 // POST /api/favorite-words — Add a word to favorites
 const addFavoriteWord = async (req, res) => {
     try {
-        const { word, meaning, sentence1, sentence2, proficiencyLevel, source, wordId } = req.body;
+        const { word, meaning, sentence1, sentence2, proficiencyLevel, source, sourceLessonId, sourceLessonTitle, wordId } = req.body;
 
         if (!word) {
             return res.status(400).json({ message: "Word is required." });
@@ -17,6 +17,8 @@ const addFavoriteWord = async (req, res) => {
             sentence2: sentence2 || null,
             proficiencyLevel: proficiencyLevel ?? 0,
             source: source || "manual",
+            sourceLessonId: sourceLessonId || null,
+            sourceLessonTitle: sourceLessonTitle || null,
             wordId: wordId || null,
         });
 
@@ -55,7 +57,7 @@ const getFavoriteWords = async (req, res) => {
 // PUT /api/favorite-words/:wordId — Update a word
 const updateFavoriteWord = async (req, res) => {
     try {
-        const { word, meaning, sentence1, sentence2, proficiencyLevel, lastReviewDate } = req.body;
+        const { word, meaning, sentence1, sentence2, proficiencyLevel, lastReviewDate, source, sourceLessonId, sourceLessonTitle } = req.body;
 
         const updatedWord = await FavoriteWord.findOneAndUpdate(
             { _id: req.params.wordId, userId: req.userId }, // Only owner can update
@@ -67,6 +69,9 @@ const updateFavoriteWord = async (req, res) => {
                     ...(sentence2 !== undefined && { sentence2 }),
                     ...(proficiencyLevel !== undefined && { proficiencyLevel }),
                     ...(lastReviewDate !== undefined && { lastReviewDate }),
+                    ...(source !== undefined && { source }),
+                    ...(sourceLessonId !== undefined && { sourceLessonId }),
+                    ...(sourceLessonTitle !== undefined && { sourceLessonTitle }),
                 },
             },
             { new: true } // Return updated document
@@ -126,6 +131,8 @@ const syncFavoriteWords = async (req, res) => {
                         proficiencyLevel: w.proficiencyLevel ?? 0,
                         lastReviewDate: w.lastReviewDate || null,
                         source: w.source || "manual",
+                        sourceLessonId: w.sourceLessonId || null,
+                        sourceLessonTitle: w.sourceLessonTitle || null,
                         wordId: w.wordId || null,
                         dateCreated: w.dateCreated || new Date(),
                     }
