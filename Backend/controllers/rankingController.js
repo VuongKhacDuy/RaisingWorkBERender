@@ -10,6 +10,34 @@ const allowedTimeframes = new Set(['weekly', 'quarterly', 'total']);
 const normalizeCategory = (category) => allowedCategories.has(category) ? category : 'academic';
 const normalizeTimeframe = (timeframe) => allowedTimeframes.has(timeframe) ? timeframe : 'weekly';
 
+const getNextPhaseEnd = (groupType) => {
+    const now = new Date();
+    const target = new Date(now);
+    let targetDay = 6; // Saturday
+    let targetHour = 21;
+    let targetMinute = 59;
+
+    if (groupType === 'finals') {
+        targetDay = 0; // Sunday
+        targetHour = 22;
+        targetMinute = 59;
+    } else if (groupType === 'grand_final') {
+        targetDay = now.getDay();
+        targetHour = 23;
+        targetMinute = 59;
+    }
+
+    let daysUntil = (targetDay - now.getDay() + 7) % 7;
+    target.setDate(now.getDate() + daysUntil);
+    target.setHours(targetHour, targetMinute, 0, 0);
+
+    if (target <= now) {
+        target.setDate(target.getDate() + 7);
+    }
+
+    return target;
+};
+
 const mapLeaderboardEntry = (member, idx, userId, groupType) => {
     const user = member.userId;
     const id = user?._id?.toString() || member.userId?.toString() || member._id.toString();
@@ -39,11 +67,15 @@ exports.getLeaderboard = async (req, res) => {
 
         let leaderboard = [];
         let userPosition = null;
+        let league = null;
 
         if (timeframe === 'weekly') {
             // Find user's current group
             const participant = await LeagueParticipant.findOne({ userId })
-                .populate('groupId')
+                .populate({
+                    path: 'groupId',
+                    populate: { path: 'tierId' }
+                })
                 .populate('userId', 'name profileImage')
                 .sort({ updatedAt: -1 });
 
@@ -55,6 +87,24 @@ exports.getLeaderboard = async (req, res) => {
                 leaderboard = groupMembers.map((m, idx) => mapLeaderboardEntry(m, idx, userId, participant.groupId.type));
 
                 userPosition = leaderboard.find(l => l.isUser);
+                const tier = participant.groupId.tierId;
+                league = {
+                    groupId: participant.groupId._id,
+                    groupType: participant.groupId.type,
+                    weekNumber: participant.groupId.weekNumber,
+                    year: participant.groupId.year,
+                    seasonId: participant.groupId.seasonId,
+                    status: participant.groupId.status,
+                    phaseEndsAt: getNextPhaseEnd(participant.groupId.type),
+                    tier: tier ? {
+                        _id: tier._id,
+                        name: tier.name,
+                        level: tier.level
+                    } : null,
+                    promotionThreshold: tier?.promotionThreshold || 0,
+                    demotionThreshold: tier?.demotionThreshold || 0,
+                    participantCount: leaderboard.length
+                };
             }
         } else {
             // Global leaderboards (Quarterly, Total)
@@ -92,7 +142,8 @@ exports.getLeaderboard = async (req, res) => {
                 category,
                 timeframe,
                 userPosition,
-                leaderboard
+                leaderboard,
+                league
             }
         });
     } catch (error) {
