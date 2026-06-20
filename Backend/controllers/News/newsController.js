@@ -70,6 +70,19 @@ module.exports = {
     }
   },
 
+  getNewsForCms: async (req, res) => {
+    try {
+      const news = await News.findById(req.params.id);
+      if (!news) {
+        return res.status(404).json("News not found");
+      }
+
+      res.status(200).json(news);
+    } catch (error) {
+      res.status(500).json("Failed to get news");
+    }
+  },
+
   deleteNews: async (req, res) => {
     try {
       const deleteItem = await News.findByIdAndDelete(req.params.id);
