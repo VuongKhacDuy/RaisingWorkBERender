@@ -14,7 +14,8 @@ const mapAccount = (user, progress) => ({
     totalCoins: progress?.totalCoins || 0,
     totalXP: progress?.totalXP || 0,
     level: progress?.level || 1,
-    smallPotionCount: progress?.smallPotionCount || 0
+    smallPotionCount: progress?.smallPotionCount || 0,
+    mediumPotionCount: progress?.mediumPotionCount || 0
 });
 
 const findAccountByEmail = async (email) => {

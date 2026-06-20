@@ -11,7 +11,11 @@ const shopProductSchema = new mongoose.Schema({
     },
     itemType: {
         type: String,
-        enum: ['small_potion', 'mana_potion', 'think_time_booster', 'enemy_time_trap', 'power_booster', 'defense_booster', 'xp_booster', 'coin_charm'],
+        enum: [
+            'small_potion', 'medium_potion', 'large_potion', 'super_potion', 'full_potion',
+            'small_mana_potion', 'medium_mana_potion', 'large_mana_potion', 'super_mana_potion', 'full_mana_potion',
+            'mana_potion', 'think_time_booster', 'enemy_time_trap', 'power_booster', 'defense_booster', 'xp_booster', 'coin_charm'
+        ],
         required: true
     },
     quantity: { type: Number, default: 1, min: 1 },

@@ -22,6 +22,23 @@ const mapProduct = (product) => ({
     sortOrder: product.sortOrder
 });
 
+const shopInventoryFields = {
+    small_potion: 'smallPotionCount',
+    medium_potion: 'mediumPotionCount',
+    large_potion: 'largePotionCount',
+    super_potion: 'superPotionCount',
+    full_potion: 'fullPotionCount',
+    small_mana_potion: 'smallManaPotionCount',
+    medium_mana_potion: 'mediumManaPotionCount',
+    large_mana_potion: 'largeManaPotionCount',
+    super_mana_potion: 'superManaPotionCount',
+    full_mana_potion: 'fullManaPotionCount'
+};
+
+const mapInventoryCounts = (progress) => Object.fromEntries(
+    Object.values(shopInventoryFields).map((field) => [field, progress[field] || 0])
+);
+
 const ensureDefaultProducts = async () => {
     const count = await ShopProduct.countDocuments();
     if (count > 0) return;
@@ -147,13 +164,11 @@ exports.purchaseProduct = async (req, res) => {
         progress.totalCoins -= totalPrice;
         const grantedQuantity = product.quantity * purchaseQuantity;
 
-        switch (product.itemType) {
-            case 'small_potion':
-                progress.smallPotionCount = (progress.smallPotionCount || 0) + grantedQuantity;
-                break;
-            default:
-                return res.status(400).json({ message: 'This product type is not supported yet.' });
+        const inventoryField = shopInventoryFields[product.itemType];
+        if (!inventoryField) {
+            return res.status(400).json({ message: 'This product type is not supported yet.' });
         }
+        progress[inventoryField] = (progress[inventoryField] || 0) + grantedQuantity;
 
         await progress.save();
 
@@ -173,7 +188,7 @@ exports.purchaseProduct = async (req, res) => {
                 purchasedQuantity: purchaseQuantity,
                 grantedQuantity,
                 totalCoins: progress.totalCoins,
-                smallPotionCount: progress.smallPotionCount
+                ...mapInventoryCounts(progress)
             }
         });
     } catch (error) {

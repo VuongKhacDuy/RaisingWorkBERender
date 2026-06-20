@@ -111,7 +111,9 @@ const syncUserProgress = async (req, res) => {
             totalXP, totalCoins,
             level, selectedMascot, selectedMascotInstanceId, selectedOutfit,
             unlockedOutfits, userCharacter, hasCaughtFirstPet,
-            smallPotionCount, reviewStreak, reviewLastReviewDate, reviewSessionRecords
+            smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
+            smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
+            reviewStreak, reviewLastReviewDate, reviewSessionRecords
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -130,6 +132,15 @@ const syncUserProgress = async (req, res) => {
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
                     ...(smallPotionCount !== undefined && { smallPotionCount }),
+                    ...(mediumPotionCount !== undefined && { mediumPotionCount }),
+                    ...(largePotionCount !== undefined && { largePotionCount }),
+                    ...(superPotionCount !== undefined && { superPotionCount }),
+                    ...(fullPotionCount !== undefined && { fullPotionCount }),
+                    ...(smallManaPotionCount !== undefined && { smallManaPotionCount }),
+                    ...(mediumManaPotionCount !== undefined && { mediumManaPotionCount }),
+                    ...(largeManaPotionCount !== undefined && { largeManaPotionCount }),
+                    ...(superManaPotionCount !== undefined && { superManaPotionCount }),
+                    ...(fullManaPotionCount !== undefined && { fullManaPotionCount }),
                     ...(reviewStreak !== undefined && { reviewStreak }),
                 },
                 $set: {
