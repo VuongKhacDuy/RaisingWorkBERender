@@ -46,6 +46,7 @@ const configRouter = require('./routes/configRoute');
 const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
 const rankingRouter = require('./routes/rankingRoute');
 const premiumRouter = require('./routes/premiumRoute');
+const shopRouter = require('./routes/shopRoute');
 const port = 3000;
 
 // ADD THIS
@@ -86,6 +87,7 @@ app.use('/api/config', configRouter);
 app.use('/api/master-vocabulary', masterVocabularyRouter);
 app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
 app.use('/api/leaderboard', rankingRouter);
+app.use('/api/shop', shopRouter);
 app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
 app.use('/api', premiumRouter); // Premium: /api/content/catalog, /api/iap/apple/transactions, /api/users/me/entitlements
 
@@ -146,4 +148,3 @@ setInterval(async () => {
     await rankingService.processDailyElimination();
   }
 }, 60000); // Check every minute
-
