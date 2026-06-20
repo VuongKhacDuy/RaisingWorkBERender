@@ -36,7 +36,7 @@ const catchPet = async (req, res) => {
             return res.status(200).json({ success: false, message: "Pet đã thoát! Thử lại sau." });
         }
 
-        const level = Math.max(1, Number(req.body.level) || 1);
+        const level = 1;
 
         // Ưu tiên dùng IVs từ App (đã roll lúc xem thông tin pet)
         // Nếu App không gửi IVs thì server tự roll
