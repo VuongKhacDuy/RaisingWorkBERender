@@ -39,6 +39,30 @@ const mapInventoryCounts = (progress) => Object.fromEntries(
     Object.values(shopInventoryFields).map((field) => [field, progress[field] || 0])
 );
 
+const normalizeCode = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const randomSuffix = () => Math.random().toString(36).slice(2, 8);
+
+const createUniqueProductCode = async (preferredCode, itemType) => {
+    const base = normalizeCode(preferredCode) || `${normalizeCode(itemType) || 'shop_item'}_${Date.now()}`;
+    let candidate = base;
+    let attempt = 0;
+
+    while (await ShopProduct.exists({ code: candidate })) {
+        attempt += 1;
+        candidate = `${base}_${randomSuffix()}`;
+        if (attempt > 8) {
+            candidate = `${base}_${Date.now()}_${randomSuffix()}`;
+        }
+    }
+
+    return candidate;
+};
+
 const ensureDefaultProducts = async () => {
     const count = await ShopProduct.countDocuments();
     if (count > 0) return;
@@ -96,7 +120,11 @@ exports.listProducts = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
     try {
-        const product = await ShopProduct.create(req.body);
+        const payload = {
+            ...req.body,
+            code: await createUniqueProductCode(req.body.code, req.body.itemType)
+        };
+        const product = await ShopProduct.create(payload);
         res.status(201).json({ data: mapProduct(product) });
     } catch (error) {
         console.error('[Shop] create product error:', error);
@@ -106,7 +134,16 @@ exports.createProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
     try {
-        const product = await ShopProduct.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const payload = { ...req.body };
+        if (payload.code) {
+            const normalized = normalizeCode(payload.code);
+            const duplicate = await ShopProduct.findOne({ code: normalized, _id: { $ne: req.params.id } });
+            payload.code = duplicate
+                ? await createUniqueProductCode(normalized, payload.itemType)
+                : normalized;
+        }
+
+        const product = await ShopProduct.findByIdAndUpdate(req.params.id, payload, { new: true });
         if (!product) {
             return res.status(404).json({ message: 'Product not found.' });
         }
