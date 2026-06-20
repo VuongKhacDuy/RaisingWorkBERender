@@ -12,7 +12,12 @@ const mapProduct = (product) => ({
     itemType: product.itemType,
     quantity: product.quantity,
     priceCoins: product.priceCoins,
+    effectType: product.effectType,
+    effectValue: product.effectValue,
+    effectUnit: product.effectUnit,
+    durationSeconds: product.durationSeconds,
     iconName: product.iconName,
+    imageUrl: product.imageUrl,
     isActive: product.isActive,
     sortOrder: product.sortOrder
 });
@@ -30,7 +35,12 @@ const ensureDefaultProducts = async () => {
             itemType: 'small_potion',
             quantity: 1,
             priceCoins: 30,
+            effectType: 'heal_hp',
+            effectValue: 30,
+            effectUnit: 'percent',
+            durationSeconds: 0,
             iconName: 'cross.case.fill',
+            imageUrl: '',
             sortOrder: 10,
             isActive: true
         },
@@ -42,7 +52,12 @@ const ensureDefaultProducts = async () => {
             itemType: 'small_potion',
             quantity: 5,
             priceCoins: 125,
+            effectType: 'heal_hp',
+            effectValue: 30,
+            effectUnit: 'percent',
+            durationSeconds: 0,
             iconName: 'shippingbox.fill',
+            imageUrl: '',
             sortOrder: 20,
             isActive: true
         }

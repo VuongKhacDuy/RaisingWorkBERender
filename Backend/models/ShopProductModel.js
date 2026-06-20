@@ -11,12 +11,25 @@ const shopProductSchema = new mongoose.Schema({
     },
     itemType: {
         type: String,
-        enum: ['small_potion', 'xp_booster', 'coin_charm'],
+        enum: ['small_potion', 'mana_potion', 'think_time_booster', 'enemy_time_trap', 'power_booster', 'defense_booster', 'xp_booster', 'coin_charm'],
         required: true
     },
     quantity: { type: Number, default: 1, min: 1 },
     priceCoins: { type: Number, required: true, min: 0 },
+    effectType: {
+        type: String,
+        enum: ['heal_hp', 'restore_mana', 'add_think_time', 'reduce_enemy_think_time', 'boost_power', 'boost_defense', 'boost_xp', 'boost_coin'],
+        default: 'heal_hp'
+    },
+    effectValue: { type: Number, default: 30, min: 0 },
+    effectUnit: {
+        type: String,
+        enum: ['percent', 'points', 'seconds'],
+        default: 'percent'
+    },
+    durationSeconds: { type: Number, default: 0, min: 0 },
     iconName: { type: String, default: 'cross.case.fill' },
+    imageUrl: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 }
 }, { timestamps: true });
