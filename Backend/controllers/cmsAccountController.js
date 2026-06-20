@@ -18,12 +18,13 @@ const mapAccount = (user, progress) => ({
 });
 
 const findAccountByEmail = async (email) => {
-    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedEmail = String(email || '').trim();
     if (!normalizedEmail) {
         return { error: { status: 400, message: 'Email is required.' } };
     }
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const user = await User.findOne({ email: new RegExp(`^${escapedEmail}$`, 'i') });
     if (!user) {
         return { error: { status: 404, message: 'User not found.' } };
     }
