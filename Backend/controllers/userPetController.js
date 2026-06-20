@@ -21,7 +21,7 @@ const xpRequiredForLevelUp = (level) => Math.floor(100 * Math.pow(level, 1.5));
 // ──────────────────────────────────────────────────────────────
 const catchPet = async (req, res) => {
     try {
-        const { petTemplateId, instanceId, baseHp, baseMana, basePower, baseDefense, baseSpeed } = req.body;
+        const { petTemplateId, instanceId, baseHp, baseMana, basePower, baseDefense, baseSpeed, catchConfirmed } = req.body;
         if (!petTemplateId) {
             return res.status(400).json({ message: "Thiếu petTemplateId." });
         }
@@ -32,11 +32,11 @@ const catchPet = async (req, res) => {
         }
 
         // Kiểm tra tỉ lệ bắt (catchRate)
-        if (Math.random() > template.catchRate) {
+        if (!catchConfirmed && Math.random() > template.catchRate) {
             return res.status(200).json({ success: false, message: "Pet đã thoát! Thử lại sau." });
         }
 
-        const level = 1;
+        const level = Math.max(1, Number(req.body.level) || 1);
 
         // Ưu tiên dùng IVs từ App (đã roll lúc xem thông tin pet)
         // Nếu App không gửi IVs thì server tự roll
