@@ -1,6 +1,32 @@
 const News = require("../../models/News/NewsModel");
 const { userHasPremiumAccess } = require("../../utils/premiumAccess");
 
+function parsePublishDate(value) {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const dateOnlyMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 0, 0, 0));
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isVisibleToApp(news, now = new Date()) {
+  if (news.status !== "published") return false;
+
+  const publishDate = parsePublishDate(news.publish_date);
+  if (!publishDate) return true;
+
+  return publishDate.getTime() <= now.getTime();
+}
+
 function toPreviewNews(news) {
   const raw = typeof news.toObject === "function" ? news.toObject() : news;
   return {
@@ -40,8 +66,8 @@ module.exports = {
   getAllNews: async (req, res) => {
     try {
       const hasPremium = await userHasPremiumAccess(req);
-      const news = await News.find().sort({ createAt: -1 });
-      const safeNews = news.map((item) => {
+      const news = await News.find().sort({ publish_date: -1, createAt: -1 });
+      const safeNews = news.filter(isVisibleToApp).map((item) => {
         if (item.accessLevel === "premium" && !hasPremium) {
           return toPreviewNews(item);
         }
@@ -53,10 +79,23 @@ module.exports = {
     }
   },
 
+  getAllNewsForCms: async (req, res) => {
+    try {
+      const news = await News.find().sort({ publish_date: -1, createAt: -1 });
+      res.status(200).json(news);
+    } catch (error) {
+      res.status(500).json("Failed to get all News");
+    }
+  },
+
   getNews: async (req, res) => {
     try {
       const news = await News.findById(req.params.id);
       if (!news) {
+        return res.status(404).json("News not found");
+      }
+
+      if (!isVisibleToApp(news)) {
         return res.status(404).json("News not found");
       }
 
