@@ -75,7 +75,11 @@ module.exports = {
       });
       res.status(200).json(safeNews);
     } catch (error) {
-      res.status(500).json("Failed to get all News");
+      console.error("[NewsController] Failed to get all News:", error);
+      res.status(500).json({
+        message: "Failed to get all News",
+        error: process.env.NODE_ENV === "production" ? undefined : error.message
+      });
     }
   },
 
