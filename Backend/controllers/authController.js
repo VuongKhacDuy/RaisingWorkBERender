@@ -1,4 +1,16 @@
 const User = require("../models/Auth/user");
+const FavoriteWord = require("../models/FavoriteWords/FavoriteWords");
+const UserProgress = require("../models/User/UserProgressModel");
+const DailyMission = require("../models/User/DailyMissionModel");
+const CoinTransaction = require("../models/User/CoinTransactionModel");
+const GameStatistics = require("../models/Game/GameStatisticsModel");
+const Achievement = require("../models/Achievement/AchievementModel");
+const UserAchievement = require("../models/Achievement/UserAchievementModel");
+const UserPet = require("../models/Pet/UserPetModel");
+const RankMetric = require("../models/Ranking/RankMetric");
+const LeagueParticipant = require("../models/Ranking/LeagueParticipant");
+const RankingHistory = require("../models/Ranking/RankingHistory");
+const AIUsage = require("../models/AI/AIUsageModel");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
@@ -117,8 +129,52 @@ const loginUser = async (req, res) => {
     }
 };
 
+const deleteMyAccount = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        await Promise.all([
+            FavoriteWord.deleteMany({ userId }),
+            UserProgress.deleteMany({ userId }),
+            DailyMission.deleteMany({ userId }),
+            CoinTransaction.deleteMany({ userId }),
+            GameStatistics.deleteMany({ userId }),
+            Achievement.deleteMany({ userId }),
+            UserAchievement.deleteMany({ userId }),
+            UserPet.deleteMany({ userId }),
+            RankMetric.deleteMany({ userId }),
+            LeagueParticipant.deleteMany({ userId }),
+            RankingHistory.deleteMany({ userId }),
+            AIUsage.deleteMany({ userId }),
+            User.updateMany(
+                {},
+                {
+                    $pull: {
+                        connectionRequests: userId,
+                        sentConnectRequests: userId,
+                    },
+                }
+            ),
+            User.updateMany({ connection: userId }, { $unset: { connection: "" } }),
+        ]);
+
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({ message: "Account deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting account", error);
+        res.status(500).json({ message: "Account deletion failed" });
+    }
+};
+
 module.exports = {
     registerUser,
     verifyEmail,
     loginUser,
+    deleteMyAccount,
 };
