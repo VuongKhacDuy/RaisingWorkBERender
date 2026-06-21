@@ -1,13 +1,14 @@
 const User = require("../models/Auth/user");
+const Post = require("../models/Auth/post");
 const FavoriteWord = require("../models/FavoriteWords/FavoriteWords");
 const UserProgress = require("../models/User/UserProgressModel");
 const DailyMission = require("../models/User/DailyMissionModel");
 const CoinTransaction = require("../models/User/CoinTransactionModel");
 const GameStatistics = require("../models/Game/GameStatisticsModel");
-const Achievement = require("../models/Achievement/AchievementModel");
 const UserAchievement = require("../models/Achievement/UserAchievementModel");
 const UserPet = require("../models/Pet/UserPetModel");
 const RankMetric = require("../models/Ranking/RankMetric");
+const LeagueGroup = require("../models/Ranking/LeagueGroup");
 const LeagueParticipant = require("../models/Ranking/LeagueParticipant");
 const RankingHistory = require("../models/Ranking/RankingHistory");
 const AIUsage = require("../models/AI/AIUsageModel");
@@ -138,19 +139,30 @@ const deleteMyAccount = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        await Promise.all([
+        const participantGroups = await LeagueParticipant.distinct("groupId", { userId });
+
+        const deletionResults = await Promise.all([
             FavoriteWord.deleteMany({ userId }),
             UserProgress.deleteMany({ userId }),
             DailyMission.deleteMany({ userId }),
             CoinTransaction.deleteMany({ userId }),
             GameStatistics.deleteMany({ userId }),
-            Achievement.deleteMany({ userId }),
             UserAchievement.deleteMany({ userId }),
             UserPet.deleteMany({ userId }),
             RankMetric.deleteMany({ userId }),
             LeagueParticipant.deleteMany({ userId }),
             RankingHistory.deleteMany({ userId }),
             AIUsage.deleteMany({ userId }),
+            Post.deleteMany({ user: userId }),
+            Post.updateMany(
+                {},
+                {
+                    $pull: {
+                        linkes: { user: userId },
+                        comment: { user: userId },
+                    },
+                }
+            ),
             User.updateMany(
                 {},
                 {
@@ -163,9 +175,25 @@ const deleteMyAccount = async (req, res) => {
             User.updateMany({ connection: userId }, { $unset: { connection: "" } }),
         ]);
 
+        const groupsToDelete = [];
+        for (const groupId of participantGroups) {
+            const remainingCount = await LeagueParticipant.countDocuments({ groupId });
+            if (remainingCount === 0) {
+                groupsToDelete.push(groupId);
+            }
+        }
+
+        if (groupsToDelete.length > 0) {
+            await LeagueGroup.deleteMany({ _id: { $in: groupsToDelete } });
+        }
+
         await User.findByIdAndDelete(userId);
 
-        res.status(200).json({ message: "Account deleted successfully" });
+        res.status(200).json({
+            message: "Account deleted successfully",
+            deletedEmptyLeagueGroups: groupsToDelete.length,
+            cleanupCount: deletionResults.length,
+        });
     } catch (error) {
         console.error("Error deleting account", error);
         res.status(500).json({ message: "Account deletion failed" });
