@@ -6,7 +6,12 @@ const MasterVocabularySchema = new mongoose.Schema({
     level: {
         type: String,
         enum: ['kids', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'],
-        default: 'A1'
+        default: 'A1',
+        set: (v) => {
+            const lower = (v || '').toLowerCase();
+            if (lower === 'kid') return 'kids';
+            return v;
+        }
     },
     partOfSpeech: { type: String, trim: true },
     meaningEn: { type: String, required: true },
