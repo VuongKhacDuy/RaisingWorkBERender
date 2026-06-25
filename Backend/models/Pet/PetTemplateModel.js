@@ -7,6 +7,13 @@ const skillSchema = new mongoose.Schema({
     damage: { type: Number, default: 0 },
 }, { _id: false });
 
+// Mỗi entry định nghĩa 1 giai đoạn tiến hóa
+const evolutionStageSchema = new mongoose.Schema({
+    stage: { type: Number, required: true, min: 1 },           // stage index: 1, 2, 3...
+    requiredLevel: { type: Number, required: true, min: 2 },   // cấp để tiến hóa
+    spriteUrl: { type: String, default: "" },                  // URL ảnh sprite đã upload (Option B)
+}, { _id: false });
+
 const petTemplateSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true, unique: true },
     image: { type: String, required: true },      // URL hoặc asset name
@@ -98,6 +105,10 @@ const petTemplateSchema = new mongoose.Schema({
 
     // Danh sách skill
     skills: { type: [skillSchema], default: [] },
+
+    // Tiến hóa — admin định nghĩa số lần & cấp tiến hóa
+    // [] = pet không tiến hóa
+    evolutionStages: { type: [evolutionStageSchema], default: [] },
 
 }, { timestamps: true });
 

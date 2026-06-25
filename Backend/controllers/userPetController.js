@@ -176,17 +176,26 @@ const levelUpPet = async (req, res) => {
         pet.xp -= required;
         pet.level += 1;
         pet.maxHp = calcStat(pet.baseHp, pet.level);
-        pet.hp = pet.maxHp; // Heal on level up? Or keep ratio? Let's heal for now.
+        pet.hp = pet.maxHp;
         pet.maxMana = calcStat(pet.baseMana, pet.level);
         pet.mana = pet.maxMana;
         pet.power = calcStat(pet.basePower, pet.level);
         pet.defense = calcStat(pet.baseDefense, pet.level);
         pet.speed = calcStat(pet.baseSpeed, pet.level);
 
+        // Kiểm tra tiến hóa dựa vào evolutionStages của template
+        const evolvedStage = (template.evolutionStages || []).find(
+            s => s.requiredLevel === pet.level
+        );
+        if (evolvedStage) {
+            pet.evolutionStage = evolvedStage.stage;
+        }
+
         await pet.save();
         res.status(200).json({
             message: `${template.name} đã lên cấp ${pet.level}!`,
             data: pet,
+            evolved: evolvedStage ? { stage: evolvedStage.stage, spriteUrl: evolvedStage.spriteUrl } : null,
             xpToNextLevel: pet.level < template.maxLevel ? xpRequiredForLevelUp(pet.level) : null,
         });
     } catch (err) {
@@ -263,7 +272,8 @@ const syncPets = async (req, res) => {
                 defense,
                 speed,
                 isActive,
-                nickname
+                nickname,
+                evolutionStage
             } = petData;
 
             // Tìm template id từ mascotId
@@ -297,6 +307,7 @@ const syncPets = async (req, res) => {
                 userPet.baseSpeed = petData.baseSpeed !== undefined ? petData.baseSpeed : userPet.baseSpeed;
                 userPet.isActive = isActive !== undefined ? isActive : userPet.isActive;
                 userPet.nickname = nickname || userPet.nickname;
+                userPet.evolutionStage = evolutionStage !== undefined ? evolutionStage : userPet.evolutionStage;
                 await userPet.save();
             } else {
                 // Create
@@ -309,10 +320,11 @@ const syncPets = async (req, res) => {
 
                 userPet = new UserPet({
                     userId,
-                    instanceId, // Lưu instanceId từ App
+                    instanceId,
                     petTemplateId: template._id,
                     level: level,
                     xp: xp || 0,
+                    evolutionStage: petData.evolutionStage || 0,
 
                     baseHp: bHp,
                     baseMana: bMana,

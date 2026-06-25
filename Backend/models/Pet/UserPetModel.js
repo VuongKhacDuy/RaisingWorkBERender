@@ -21,6 +21,7 @@ const userPetSchema = new mongoose.Schema({
     // Tiến trình
     level: { type: Number, default: 1, min: 1 },
     xp: { type: Number, default: 0, min: 0 },
+    evolutionStage: { type: Number, default: 0, min: 0 }, // 0 = base, 1/2/3... = đã tiến hóa
 
     // Chỉ số chiến đấu (random khi catch)
     hp: { type: Number, default: 100 },
