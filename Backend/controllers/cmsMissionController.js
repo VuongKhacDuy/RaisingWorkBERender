@@ -15,7 +15,27 @@ const allowedMissionTypes = [
     'dailyTasks',
     'mixedActivity',
     'listenWords',
-    'mascotInteract'
+    'mascotInteract',
+    'aiSpeaking',
+    'pronunciationScore',
+    'shadowing',
+    'writeMeaning',
+    'writeExample',
+    'learnWithContext',
+    'findSynonyms',
+    'identifyFromAudio',
+    'changeOutfit',
+    'keepHappy',
+    'earlyLogin',
+    'nightStudy',
+    'shareWord',
+    'inviteFriend',
+    'achieveAccuracy',
+    'catchPet',
+    'useItem',
+    'correctStreak5',
+    'wildBattle',
+    'wildBattleWin'
 ];
 
 const allowedDifficulties = ['Easy', 'Medium', 'Hard'];
