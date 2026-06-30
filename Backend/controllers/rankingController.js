@@ -102,9 +102,10 @@ exports.getLeaderboard = async (req, res) => {
                 };
             } else {
                 // No league group yet — show global top ranking as preview
-                const metrics = await RankMetric.find({ 'academic.totalXP': { $gt: 0 } })
+                const fallbackPath = `${category}.totalXP`;
+                const metrics = await RankMetric.find({ [fallbackPath]: { $gt: 0 } })
                     .populate('userId', 'name profileImage isLeaderboardActive')
-                    .sort({ 'academic.totalXP': -1 })
+                    .sort({ [fallbackPath]: -1 })
                     .limit(50);
 
                 const visible = metrics.filter(m => m.userId?.isLeaderboardActive !== false);
@@ -113,7 +114,7 @@ exports.getLeaderboard = async (req, res) => {
                     rank: idx + 1,
                     name: m.userId?.name || 'Unknown',
                     avatar: m.userId?.profileImage || null,
-                    score: m.academic?.totalXP || 0,
+                    score: m[category]?.totalXP || 0,
                     isUser: m.userId?._id?.toString() === userId?.toString()
                 }));
                 userPosition = leaderboard.find(l => l.isUser) || null;
