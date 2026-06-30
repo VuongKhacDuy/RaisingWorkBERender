@@ -2,7 +2,13 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/cmsCollectionController');
 
-// CMS routes (admin only — add auth middleware here when ready)
+// Groups (Cấp 1)
+router.get('/collection-groups', ctrl.listGroups);
+router.post('/collection-groups', ctrl.createGroup);
+router.put('/collection-groups/:id', ctrl.updateGroup);
+router.delete('/collection-groups/:id', ctrl.deleteGroup);
+
+// Collections (Cấp 2) — ?groupId=xxx để filter theo group
 router.get('/collections', ctrl.listCollections);
 router.post('/collections', ctrl.createCollection);
 router.get('/collections/:id', ctrl.getCollectionDetail);

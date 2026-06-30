@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const VocabularyCollectionSchema = new mongoose.Schema({
+    groupId: { type: mongoose.Schema.Types.ObjectId, ref: 'CollectionGroup', default: null },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true, default: '' },
     category: {

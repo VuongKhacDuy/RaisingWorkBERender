@@ -1,10 +1,84 @@
 const VocabularyCollection = require('../models/Vocabulary/VocabularyCollectionModel');
+const CollectionGroup = require('../models/Vocabulary/CollectionGroupModel');
 const MasterVocabulary = require('../models/Vocabulary/MasterVocabularyModel');
 
-// ── CMS: list all collections ──────────────────────────────────────────────
+// ── CMS: Groups CRUD ───────────────────────────────────────────────────────
+exports.listGroups = async (req, res) => {
+    try {
+        const groups = await CollectionGroup.find().sort({ displayOrder: 1, createdAt: -1 }).lean();
+        // Attach collection count to each group
+        const counts = await VocabularyCollection.aggregate([
+            { $group: { _id: '$groupId', count: { $sum: 1 } } }
+        ]);
+        const countMap = Object.fromEntries(counts.map((c) => [String(c._id), c.count]));
+        const result = groups.map((g) => ({ ...g, collectionCount: countMap[String(g._id)] || 0 }));
+        res.json({ data: result });
+    } catch (err) {
+        console.error('[CMS Group] list error:', err);
+        res.status(500).json({ message: 'Failed to load groups.' });
+    }
+};
+
+exports.createGroup = async (req, res) => {
+    try {
+        const { name, description, coverEmoji, isActive, displayOrder } = req.body;
+        if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
+        const group = await CollectionGroup.create({
+            name: name.trim(),
+            description: description?.trim() || '',
+            coverEmoji: coverEmoji || '📂',
+            isActive: isActive !== false,
+            displayOrder: Number(displayOrder) || 0,
+        });
+        res.status(201).json({ data: group });
+    } catch (err) {
+        console.error('[CMS Group] create error:', err);
+        res.status(500).json({ message: 'Failed to create group.' });
+    }
+};
+
+exports.updateGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description, coverEmoji, isActive, displayOrder } = req.body;
+        const group = await CollectionGroup.findById(id);
+        if (!group) return res.status(404).json({ message: 'Group not found.' });
+        if (name !== undefined) group.name = name.trim();
+        if (description !== undefined) group.description = description.trim();
+        if (coverEmoji !== undefined) group.coverEmoji = coverEmoji;
+        if (isActive !== undefined) group.isActive = Boolean(isActive);
+        if (displayOrder !== undefined) group.displayOrder = Number(displayOrder);
+        await group.save();
+        res.json({ data: group });
+    } catch (err) {
+        console.error('[CMS Group] update error:', err);
+        res.status(500).json({ message: 'Failed to update group.' });
+    }
+};
+
+exports.deleteGroup = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const collectionCount = await VocabularyCollection.countDocuments({ groupId: id });
+        if (collectionCount > 0) {
+            return res.status(400).json({ message: `Nhóm này còn ${collectionCount} collection. Xóa collection trước.` });
+        }
+        const deleted = await CollectionGroup.findByIdAndDelete(id);
+        if (!deleted) return res.status(404).json({ message: 'Group not found.' });
+        res.json({ message: 'Deleted.' });
+    } catch (err) {
+        console.error('[CMS Group] delete error:', err);
+        res.status(500).json({ message: 'Failed to delete group.' });
+    }
+};
+
+// ── CMS: list all collections (optionally filtered by groupId) ─────────────
 exports.listCollections = async (req, res) => {
     try {
-        const collections = await VocabularyCollection.find()
+        const query = {};
+        if (req.query.groupId) query.groupId = req.query.groupId;
+        const collections = await VocabularyCollection.find(query)
+            .populate('groupId', 'name coverEmoji')
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
         res.json({ data: collections });
@@ -17,10 +91,11 @@ exports.listCollections = async (req, res) => {
 // ── CMS: create collection ─────────────────────────────────────────────────
 exports.createCollection = async (req, res) => {
     try {
-        const { name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
+        const { groupId, name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
         if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
 
         const collection = await VocabularyCollection.create({
+            groupId: groupId || null,
             name: name.trim(),
             description: description?.trim() || '',
             category: category || 'custom',
@@ -167,14 +242,37 @@ exports.removeWords = async (req, res) => {
     }
 };
 
-// ── iOS: public list (active only, includes word data) ────────────────────
+// ── iOS: public list (active only, grouped) ───────────────────────────────
 exports.listForIOS = async (req, res) => {
     try {
+        const groups = await CollectionGroup.find({ isActive: true })
+            .sort({ displayOrder: 1, createdAt: -1 })
+            .lean();
+
         const collections = await VocabularyCollection.find({ isActive: true })
             .populate('wordIds', 'word ipa level partOfSpeech meaningVi meaningEn example topic frequency ieltsBand')
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
-        res.json({ data: collections });
+
+        // Group collections by groupId
+        const collsByGroup = {};
+        const ungrouped = [];
+        for (const col of collections) {
+            if (col.groupId) {
+                const key = String(col.groupId);
+                if (!collsByGroup[key]) collsByGroup[key] = [];
+                collsByGroup[key].push(col);
+            } else {
+                ungrouped.push(col);
+            }
+        }
+
+        const result = groups.map((g) => ({
+            ...g,
+            collections: collsByGroup[String(g._id)] || [],
+        }));
+
+        res.json({ data: { groups: result, ungrouped } });
     } catch (err) {
         console.error('[Collection iOS] list error:', err);
         res.status(500).json({ message: 'Failed to load collections.' });
