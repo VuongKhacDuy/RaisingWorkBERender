@@ -76,6 +76,12 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin", "tester"],
     default: "user",
   },
+
+  // Controls visibility in leaderboard (for seeder/tester accounts)
+  isLeaderboardActive: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const User = mongoose.model("User", userSchema);

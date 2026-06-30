@@ -12,6 +12,7 @@ router.post('/accounts/coins', cmsAccountController.adjustAccountCoins);
 router.post('/accounts/seed', cmsSeedController.seedAccounts);
 router.get('/accounts/seeders', cmsSeedController.listSeederAccounts);
 router.delete('/accounts/seeders', cmsSeedController.deleteSeederAccounts);
+router.patch('/accounts/seeders/:id/toggle', cmsSeedController.toggleSeederActive);
 router.get('/missions', cmsMissionController.listMissionPool);
 router.post('/missions', cmsMissionController.createMissionPoolItem);
 router.put('/missions/:id', cmsMissionController.updateMissionPoolItem);

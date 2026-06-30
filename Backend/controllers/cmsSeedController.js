@@ -127,14 +127,22 @@ exports.seedAccounts = async (req, res) => {
 
 exports.listSeederAccounts = async (req, res) => {
     try {
-        const users = await User.find({ role: 'tester' }).sort({ createAt: -1 }).limit(100);
+        const users = await User.find({ role: 'tester' }).sort({ createdAt: -1 }).limit(200);
         const ids = users.map(u => u._id);
         const progresses = await UserProgress.find({ userId: { $in: ids } });
         const progressMap = Object.fromEntries(progresses.map(p => [p.userId.toString(), p]));
 
         const data = users.map(u => {
             const p = progressMap[u._id.toString()];
-            return { _id: u._id, name: u.name, email: u.email, level: p?.level || 1, totalXP: p?.totalXP || 0, streak: p?.currentStreak || 0 };
+            return {
+                _id: u._id,
+                name: u.name,
+                email: u.email,
+                isLeaderboardActive: u.isLeaderboardActive !== false,
+                level: p?.level || 1,
+                totalXP: p?.totalXP || 0,
+                streak: p?.currentStreak || 0,
+            };
         });
 
         res.status(200).json({ data });
@@ -143,16 +151,38 @@ exports.listSeederAccounts = async (req, res) => {
     }
 };
 
+exports.toggleSeederActive = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findOne({ _id: id, role: 'tester' });
+        if (!user) return res.status(404).json({ message: 'Seeder not found.' });
+        user.isLeaderboardActive = !user.isLeaderboardActive;
+        await user.save();
+        res.status(200).json({ _id: user._id, isLeaderboardActive: user.isLeaderboardActive });
+    } catch (err) {
+        res.status(500).json({ message: 'Toggle failed.' });
+    }
+};
+
 exports.deleteSeederAccounts = async (req, res) => {
     try {
-        const { ids } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ message: 'ids array required.' });
+        const { ids, deleteAll } = req.body;
+
+        let targetIds;
+        if (deleteAll) {
+            const users = await User.find({ role: 'tester' }, '_id');
+            targetIds = users.map(u => u._id);
+        } else {
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ message: 'ids array required or use deleteAll: true.' });
+            }
+            targetIds = ids;
         }
-        await User.deleteMany({ _id: { $in: ids }, role: 'tester' });
-        await UserProgress.deleteMany({ userId: { $in: ids } });
-        await FavoriteWord.deleteMany({ userId: { $in: ids } });
-        res.status(200).json({ message: `Deleted ${ids.length} seeder account(s).` });
+
+        await User.deleteMany({ _id: { $in: targetIds }, role: 'tester' });
+        await UserProgress.deleteMany({ userId: { $in: targetIds } });
+        await FavoriteWord.deleteMany({ userId: { $in: targetIds } });
+        res.status(200).json({ message: `Deleted ${targetIds.length} seeder account(s).` });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete.' });
     }
