@@ -6,6 +6,7 @@ const seriesController = require('../controllers/SeriesStories/seriesController'
 router.post('/create_series', seriesController.createSeries);
 
 // Lấy tất cả series (có pagination)
+router.get('/', seriesController.getAllSeries);
 router.get('/get_all_series', seriesController.getAllSeries);
 
 // Lấy series theo ID (kèm danh sách episodes)

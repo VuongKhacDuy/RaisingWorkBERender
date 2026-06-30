@@ -47,6 +47,10 @@ const EpisodeSchema = new mongoose.Schema({
     type: String, 
     required: false 
   },
+  videoUrl: { 
+    type: String, 
+    required: false 
+  },
   summary: { 
     type: String, 
     required: false 
@@ -62,6 +66,11 @@ const EpisodeSchema = new mongoose.Schema({
   isPublished: { 
     type: Boolean, 
     default: false 
+  },
+  accessLevel: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
   },
   readCount: { 
     type: Number, 

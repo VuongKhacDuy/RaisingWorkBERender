@@ -1,4 +1,17 @@
 const User = require("../models/Auth/user");
+const Post = require("../models/Auth/post");
+const FavoriteWord = require("../models/FavoriteWords/FavoriteWords");
+const UserProgress = require("../models/User/UserProgressModel");
+const DailyMission = require("../models/User/DailyMissionModel");
+const CoinTransaction = require("../models/User/CoinTransactionModel");
+const GameStatistics = require("../models/Game/GameStatisticsModel");
+const UserAchievement = require("../models/Achievement/UserAchievementModel");
+const UserPet = require("../models/Pet/UserPetModel");
+const RankMetric = require("../models/Ranking/RankMetric");
+const LeagueGroup = require("../models/Ranking/LeagueGroup");
+const LeagueParticipant = require("../models/Ranking/LeagueParticipant");
+const RankingHistory = require("../models/Ranking/RankingHistory");
+const AIUsage = require("../models/AI/AIUsageModel");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
@@ -52,13 +65,17 @@ const registerUser = async (req, res) => {
 
         newUser.verificationToken = crypto.randomBytes(20).toString("hex");
 
+        console.log(`Registration attempt for email: ${email}`);
         await newUser.save();
+        console.log(`User saved successfully: ${email}`);
 
-        await sendVerificationEmail(newUser.email, newUser.verificationToken);
-
+        // Respond immediately — do not wait for email
         res.status(201).json({
             message: "Registration successful. Please check your email for verification",
         });
+
+        // Send verification email in background (non-blocking)
+        sendVerificationEmail(newUser.email, newUser.verificationToken);
     } catch (error) {
         console.log("Error registering user", error);
         res.status(500).json({ message: "Registration failed" });
@@ -86,24 +103,100 @@ const verifyEmail = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-
+        console.log(`Login attempt for email: ${email}`);
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            console.log(`Login failed: User not found for ${email}`);
+            return res.status(401).json({ message: "User not found" });
         }
 
         // Compare hashed password
         const isPasswordValid = await bcrypt.compare(password, user.password);
+        console.log(`Password check for ${email}: ${isPasswordValid ? 'SUCCESS' : 'FAILURE'}`);
+
         if (!isPasswordValid) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Invalid password" });
         }
 
         const token = jwt.sign({ userId: user._id }, secretKey);
 
-        res.status(200).json({ token });
+        res.status(200).json({ 
+            token,
+            name: user.name
+        });
     } catch (error) {
         console.log("Error logging in", error);
         res.status(500).json({ message: "Login failed" });
+    }
+};
+
+const deleteMyAccount = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const participantGroups = await LeagueParticipant.distinct("groupId", { userId });
+
+        const deletionResults = await Promise.all([
+            FavoriteWord.deleteMany({ userId }),
+            UserProgress.deleteMany({ userId }),
+            DailyMission.deleteMany({ userId }),
+            CoinTransaction.deleteMany({ userId }),
+            GameStatistics.deleteMany({ userId }),
+            UserAchievement.deleteMany({ userId }),
+            UserPet.deleteMany({ userId }),
+            RankMetric.deleteMany({ userId }),
+            LeagueParticipant.deleteMany({ userId }),
+            RankingHistory.deleteMany({ userId }),
+            AIUsage.deleteMany({ userId }),
+            Post.deleteMany({ user: userId }),
+            Post.updateMany(
+                {},
+                {
+                    $pull: {
+                        linkes: { user: userId },
+                        comment: { user: userId },
+                    },
+                }
+            ),
+            User.updateMany(
+                {},
+                {
+                    $pull: {
+                        connectionRequests: userId,
+                        sentConnectRequests: userId,
+                    },
+                }
+            ),
+            User.updateMany({ connection: userId }, { $unset: { connection: "" } }),
+        ]);
+
+        const groupsToDelete = [];
+        for (const groupId of participantGroups) {
+            const remainingCount = await LeagueParticipant.countDocuments({ groupId });
+            if (remainingCount === 0) {
+                groupsToDelete.push(groupId);
+            }
+        }
+
+        if (groupsToDelete.length > 0) {
+            await LeagueGroup.deleteMany({ _id: { $in: groupsToDelete } });
+        }
+
+        await User.findByIdAndDelete(userId);
+
+        res.status(200).json({
+            message: "Account deleted successfully",
+            deletedEmptyLeagueGroups: groupsToDelete.length,
+            cleanupCount: deletionResults.length,
+        });
+    } catch (error) {
+        console.error("Error deleting account", error);
+        res.status(500).json({ message: "Account deletion failed" });
     }
 };
 
@@ -111,4 +204,5 @@ module.exports = {
     registerUser,
     verifyEmail,
     loginUser,
+    deleteMyAccount,
 };

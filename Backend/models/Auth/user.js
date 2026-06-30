@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   },
 
   verified: {
-    type: String,
+    type: Boolean,
     default: false,
   },
 
@@ -58,6 +58,29 @@ const userSchema = new mongoose.Schema({
   createAt: {
     type: Date,
     default: Date.now,
+  },
+
+  isPremium: {
+    type: Boolean,
+    default: false,
+  },
+
+  premiumExpiresAt: {
+    type: Date,
+    default: null,
+  },
+
+  // "user" | "admin" — admin gets permanent premium access
+  role: {
+    type: String,
+    enum: ["user", "admin", "tester"],
+    default: "user",
+  },
+
+  // Controls visibility in leaderboard (for seeder/tester accounts)
+  isLeaderboardActive: {
+    type: Boolean,
+    default: true,
   },
 });
 

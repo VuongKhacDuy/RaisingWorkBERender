@@ -2,6 +2,9 @@ const router = require('express').Router();
 const episodeController = require('../controllers/SeriesStories/episodeController');
 
 // === EPISODES ROUTES ===
+// Lấy tất cả episodes (Sync entry point cho app)
+router.get('/', episodeController.getAllEpisodes);
+
 // Tạo episode mới
 router.post('/create_episode', episodeController.createEpisode);
 

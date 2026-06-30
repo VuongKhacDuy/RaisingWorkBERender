@@ -1,0 +1,51 @@
+const mongoose = require("mongoose");
+
+const userPetSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    petTemplateId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PetTemplate",
+        required: true,
+    },
+    // ID duy nhất từ phía App (UUID)
+    instanceId: { type: String, unique: true, sparse: true },
+
+    // Tùy chỉnh của người dùng
+    nickname: { type: String, default: '' },
+    isActive: { type: Boolean, default: false },
+
+    // Tiến trình
+    level: { type: Number, default: 1, min: 1 },
+    xp: { type: Number, default: 0, min: 0 },
+    evolutionStage: { type: Number, default: 0, min: 0 }, // 0 = base, 1/2/3... = đã tiến hóa
+
+    // Chỉ số chiến đấu (random khi catch)
+    hp: { type: Number, default: 100 },
+    maxHp: { type: Number, default: 100 },
+    mana: { type: Number, default: 50 },
+    maxMana: { type: Number, default: 50 },
+    power: { type: Number, default: 15 },
+    defense: { type: Number, default: 10 },
+    speed: { type: Number, default: 10 },
+
+    // Chỉ số gốc (Base stats — để tính toán level up)
+    baseHp: { type: Number, default: 100 },
+    baseMana: { type: Number, default: 50 },
+    basePower: { type: Number, default: 15 },
+    baseDefense: { type: Number, default: 10 },
+    baseSpeed: { type: Number, default: 10 },
+
+    // Thời điểm bắt được
+    caughtAt: { type: Date, default: Date.now },
+
+}, { timestamps: true });
+
+// Index để truy vấn nhanh theo userId
+userPetSchema.index({ userId: 1 });
+userPetSchema.index({ userId: 1, petTemplateId: 1 });
+
+module.exports = mongoose.model("UserPet", userPetSchema);

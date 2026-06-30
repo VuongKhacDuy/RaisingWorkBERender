@@ -1,15 +1,16 @@
 const Episode = require("../../models/SeriesStories/EpisodeModel");
 const Series = require("../../models/SeriesStories/SeriesModel");
 const ImageBase64 = require("../../models/ImageBase64");
-const { 
-  migrateLegacyContent, 
+const { userHasPremiumAccess } = require("../../utils/premiumAccess");
+const {
+  migrateLegacyContent,
   createDefaultContentBlocks,
-  validateContentBlock 
+  validateContentBlock
 } = require("../../utils/contentMigration");
 
 const processContentBlocks = (contentBlocks) => {
   if (!Array.isArray(contentBlocks)) return contentBlocks;
-  
+
   return contentBlocks.map(block => {
     if (block.content && block.type === 'text') {
       return {
@@ -24,12 +25,38 @@ const processContentBlocks = (contentBlocks) => {
   });
 };
 
+function isPremiumEpisode(episode) {
+  const raw = typeof episode.toObject === "function" ? episode.toObject() : episode;
+  return raw.accessLevel === "premium" || raw.seriesId?.accessLevel === "premium";
+}
+
+function toPreviewEpisode(episode) {
+  const raw = typeof episode.toObject === "function" ? episode.toObject() : episode;
+  return {
+    _id: raw._id,
+    seriesId: raw.seriesId,
+    episodeNumber: raw.episodeNumber,
+    title: raw.title,
+    summary: raw.summary,
+    duration: raw.duration,
+    publishedAt: raw.publishedAt,
+    isPublished: raw.isPublished,
+    accessLevel: raw.accessLevel,
+    readCount: raw.readCount,
+    likeCount: raw.likeCount,
+    coverImage: raw.coverImage,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    locked: isPremiumEpisode(raw)
+  };
+}
+
 module.exports = {
   // Tạo episode mới
   createEpisode: async (req, res) => {
     try {
       const { seriesId } = req.body;
-      
+
       // Kiểm tra series có tồn tại không
       const series = await Series.findById(seriesId);
       if (!series) {
@@ -40,14 +67,14 @@ module.exports = {
       }
 
       const episodeData = { ...req.body };
-      
+
       // Nếu có content cũ (legacy), migrate sang content blocks
       if (episodeData.content && !episodeData.contentBlocks) {
         episodeData.contentBlocks = migrateLegacyContent(episodeData.content);
         episodeData.legacyContent = episodeData.content;
         delete episodeData.content;
       }
-      
+
       // Nếu không có content blocks, tạo default
       if (!episodeData.contentBlocks || episodeData.contentBlocks.length === 0) {
         episodeData.contentBlocks = createDefaultContentBlocks();
@@ -70,7 +97,7 @@ module.exports = {
       console.log('=== DEBUG: Checking contentBlocks for images ===');
       console.log('Episode ID:', newEpisode._id);
       console.log('ContentBlocks:', JSON.stringify(newEpisode.contentBlocks, null, 2));
-      
+
       if (newEpisode.contentBlocks && Array.isArray(newEpisode.contentBlocks)) {
         const imageIds = [];
         newEpisode.contentBlocks.forEach((block, index) => {
@@ -91,17 +118,17 @@ module.exports = {
           );
           console.log('Update result:', updateResult);
           console.log(`Updated refIdEpisode for ${updateResult.modifiedCount} images`);
-          
+
           // Cập nhật lại episode với thông tin mới nhất và populate thông tin ảnh
           const updatedEpisode = await Episode.findById(newEpisode._id);
-          
+
           // Lấy thông tin chi tiết các ảnh đã được cập nhật để trả về frontend
-          const updatedImages = await ImageBase64.find({ 
-            _id: { $in: imageIds } 
+          const updatedImages = await ImageBase64.find({
+            _id: { $in: imageIds }
           }).select('_id refIdEpisode originalName type');
-          
+
           console.log('Updated images info:', updatedImages);
-          
+
           res.status(201).json({
             success: true,
             message: "Episode created successfully",
@@ -141,9 +168,15 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
-      const episodes = await Episode.find()
-        .populate('seriesId', 'title author')
-        .sort({ createdAt: -1 })
+      const query = {};
+      if (req.query.since) {
+        query.updatedAt = { $gt: new Date(req.query.since) };
+      }
+
+      const hasPremium = await userHasPremiumAccess(req);
+      const episodes = await Episode.find(query)
+        .populate('seriesId', 'title author accessLevel')
+        .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit);
 
@@ -151,7 +184,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        data: episodes,
+        data: episodes.map((episode) => isPremiumEpisode(episode) && !hasPremium ? toPreviewEpisode(episode) : episode),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -177,7 +210,9 @@ module.exports = {
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
+      const hasPremium = await userHasPremiumAccess(req);
       const episodes = await Episode.find({ seriesId })
+        .populate('seriesId', 'title author accessLevel')
         .sort({ episodeNumber: 1 })
         .skip(skip)
         .limit(limit);
@@ -186,7 +221,7 @@ module.exports = {
 
       res.status(200).json({
         success: true,
-        data: episodes,
+        data: episodes.map((episode) => isPremiumEpisode(episode) && !hasPremium ? toPreviewEpisode(episode) : episode),
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -208,12 +243,19 @@ module.exports = {
   getEpisodeById: async (req, res) => {
     try {
       const episode = await Episode.findById(req.params.id)
-        .populate('seriesId', 'title author status');
+        .populate('seriesId', 'title author status accessLevel');
 
       if (!episode) {
         return res.status(404).json({
           success: false,
           message: "Episode not found"
+        });
+      }
+
+      if (isPremiumEpisode(episode) && !(await userHasPremiumAccess(req))) {
+        return res.status(200).json({
+          success: true,
+          data: toPreviewEpisode(episode)
         });
       }
 
@@ -239,7 +281,7 @@ module.exports = {
   updateEpisode: async (req, res) => {
     try {
       const updateData = { ...req.body };
-      
+
       if (updateData.contentBlocks) {
         updateData.contentBlocks = processContentBlocks(updateData.contentBlocks);
       }
@@ -261,7 +303,7 @@ module.exports = {
       console.log('=== DEBUG UPDATE: Checking contentBlocks for images ===');
       console.log('Episode ID:', req.params.id);
       console.log('UpdateData contentBlocks:', JSON.stringify(updateData.contentBlocks, null, 2));
-      
+
       if (updateData.contentBlocks && Array.isArray(updateData.contentBlocks)) {
         const imageIds = [];
         updateData.contentBlocks.forEach((block, index) => {
@@ -306,7 +348,7 @@ module.exports = {
   deleteEpisode: async (req, res) => {
     try {
       const episode = await Episode.findById(req.params.id);
-      
+
       if (!episode) {
         return res.status(404).json({
           success: false,
@@ -325,15 +367,15 @@ module.exports = {
       }
 
       // 2. Xóa ảnh của episode (theo refId)
-      await ImageBase64.deleteMany({ 
-        type: 'episode', 
-        refId: req.params.id 
+      await ImageBase64.deleteMany({
+        type: 'episode',
+        refId: req.params.id
       });
 
       // 3. Xóa ảnh trong content blocks (theo imageId)
       if (imageIdsToDelete.length > 0) {
-        await ImageBase64.deleteMany({ 
-          _id: { $in: imageIdsToDelete } 
+        await ImageBase64.deleteMany({
+          _id: { $in: imageIdsToDelete }
         });
       }
 
@@ -363,7 +405,7 @@ module.exports = {
   togglePublishEpisode: async (req, res) => {
     try {
       const episode = await Episode.findById(req.params.id);
-      
+
       if (!episode) {
         return res.status(404).json({
           success: false,
@@ -447,7 +489,7 @@ module.exports = {
             message: `Block at index ${i} missing required fields (id, type, order)`
           });
         }
-        
+
         // Validate block type
         const validTypes = ['text', 'heading', 'image', 'quote', 'divider'];
         if (!validTypes.includes(block.type)) {
@@ -515,10 +557,10 @@ module.exports = {
 
       // Thêm block mới
       episode.contentBlocks.push(block);
-      
+
       // Sắp xếp lại theo order
       episode.contentBlocks.sort((a, b) => a.order - b.order);
-      
+
       await episode.save();
 
       res.status(200).json({
@@ -613,7 +655,7 @@ module.exports = {
 
       // Sắp xếp lại
       episode.contentBlocks.sort((a, b) => a.order - b.order);
-      
+
       await episode.save();
 
       res.status(200).json({
@@ -634,7 +676,7 @@ module.exports = {
   migrateLegacyContentToBlocks: async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       const episode = await Episode.findById(id);
       if (!episode) {
         return res.status(404).json({
@@ -654,7 +696,7 @@ module.exports = {
       // Migrate từ legacy content hoặc tạo default
       const legacyContent = episode.legacyContent || '';
       episode.contentBlocks = migrateLegacyContent(legacyContent);
-      
+
       await episode.save();
 
       res.status(200).json({

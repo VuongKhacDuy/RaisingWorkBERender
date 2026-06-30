@@ -34,6 +34,21 @@ const newsRouter = require('./routes/newsRoute')
 const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
 const episodeRouter = require('./routes/episodeRoute');
+const favoriteWordsRouter = require('./routes/favoriteWordsRoute');
+const achievementRouter = require('./routes/achievementRoute');
+const gameStatisticsRouter = require('./routes/gameStatisticsRoute');
+const userProgressRouter = require('./routes/userProgressRoute');
+const dailyMissionRouter = require('./routes/dailyMissionRoute');
+const testRouter = require('./routes/testRoute');
+const petTemplateRouter = require('./routes/petTemplateRoute');
+const userPetRouter = require('./routes/userPetRoute');
+const configRouter = require('./routes/configRoute');
+const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
+const rankingRouter = require('./routes/rankingRoute');
+const premiumRouter = require('./routes/premiumRoute');
+const shopRouter = require('./routes/shopRoute');
+const cmsAccountRouter = require('./routes/cmsAccountRoute');
+const aiContextRouter = require('./routes/aiContextRoute');
 const port = 3000;
 
 // ADD THIS
@@ -53,6 +68,33 @@ const jwt = require("jsonwebtoken");
 // Serve static files in uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
+
+app.use('/api/topics', topicRouter)
+app.use('/api/news', newsRouter)
+app.use('/api/upload/images', uploadImageSeriesRoute);
+app.use('/api/series_stories', seriesStoriesRouter);
+app.use('/api/episodes', episodeRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/favorite-words', favoriteWordsRouter);
+app.use('/api/achievements', achievementRouter);
+app.use('/api/game-statistics', gameStatisticsRouter);
+app.use('/api/user-progress', userProgressRouter);
+app.use('/api/daily-missions', dailyMissionRouter);
+app.use('/api/test', testRouter);
+app.use('/api/pets/templates', petTemplateRouter);
+app.use('/api/pets/my', userPetRouter);
+app.use('/api/config', configRouter);
+app.use('/api/master-vocabulary', masterVocabularyRouter);
+app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
+app.use('/api/leaderboard', rankingRouter);
+app.use('/api/shop', shopRouter);
+app.use('/api/cms', cmsAccountRouter);
+app.use('/api/ai', aiContextRouter);
+app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
+app.use('/api', premiumRouter); // Premium: /api/content/catalog, /api/iap/apple/transactions, /api/users/me/entitlements
+
 // ===== MONGODB CONNECTION WITH DEBUG =====
 // Fallback MONGO_URL if env var not found
 const MONGO_URL = process.env.MONGO_URL || 'mongodb+srv://khongduocdau456:khongduocdau456@wordsrise.kvelvt0.mongodb.net/WordsRise';
@@ -67,38 +109,46 @@ mongoose
     console.log('✅ MongoDB connected successfully');
     console.log('Connected to database:', mongoose.connection.name);
     console.log('Connection host:', mongoose.connection.host);
+
+    // ===== SERVER START =====
+    const serverPort = process.env.PORT || port;
+    console.log('Starting server...');
+    console.log('Using PORT:', serverPort);
+
+    app.listen(serverPort, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${serverPort}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📍 URL: http://localhost:${serverPort}`);
+    });
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:');
     console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    console.error('MONGO_URL being used:', process.env.MONGO_URL);
-    console.error('MONGO_URL type:', typeof process.env.MONGO_URL);
     process.exit(1);
   });
 
-// app.get("/", (req, res) => res.send("Test React js backend!"));
+// ===== RANKING AUTOMATION (Simple Cron Simulation) =====
+const rankingService = require('./services/rankingService');
 
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ limit: '10mb', extended: true }))
+// Check every hour for resets
+setInterval(async () => {
+  const now = new Date();
+  const day = now.getDay(); // 0: Sun, 6: Sat
+  const hour = now.getHours();
+  const minute = now.getMinutes();
 
-app.use('/api/topics', topicRouter)
-app.use('/api/news', newsRouter)
-app.use('/api/upload/images', uploadImageSeriesRoute);
-app.use('/api/series_stories', seriesStoriesRouter);
-app.use('/api/episodes', episodeRouter);
-app.use('/api/auth', authRouter);
+  // Saturday 21:59 - Close Qualifiers
+  if (day === 6 && hour === 21 && minute === 59) {
+    await rankingService.processSaturdayCloser();
+  }
 
+  // Sunday 22:59 - Reset Week
+  if (day === 0 && hour === 22 && minute === 59) {
+    await rankingService.processSundayReset();
+  }
 
-// ===== SERVER START WITH DEBUG =====
-const serverPort = process.env.PORT || port;
-console.log('Starting server...');
-console.log('Using PORT:', serverPort);
-console.log('Environment:', process.env.NODE_ENV);
-
-app.listen(serverPort, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${serverPort}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-  console.log(`📍 URL: http://localhost:${serverPort}`);
-});
-
+  // Daily 23:59 - Grand Final Eliminations
+  if (hour === 23 && minute === 59) {
+    await rankingService.processDailyElimination();
+  }
+}, 60000); // Check every minute
