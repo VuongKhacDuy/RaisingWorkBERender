@@ -48,6 +48,8 @@ const rankingRouter = require('./routes/rankingRoute');
 const premiumRouter = require('./routes/premiumRoute');
 const shopRouter = require('./routes/shopRoute');
 const cmsAccountRouter = require('./routes/cmsAccountRoute');
+const cmsCollectionRouter = require('./routes/cmsCollectionRoute');
+const vocabularyCollectionRouter = require('./routes/vocabularyCollectionRoute');
 const aiContextRouter = require('./routes/aiContextRoute');
 const port = 3000;
 
@@ -91,6 +93,8 @@ app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
 app.use('/api/leaderboard', rankingRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/cms', cmsAccountRouter);
+app.use('/api/cms', cmsCollectionRouter);
+app.use('/api/vocab-collections', vocabularyCollectionRouter);
 app.use('/api/ai', aiContextRouter);
 app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
 app.use('/api', premiumRouter); // Premium: /api/content/catalog, /api/iap/apple/transactions, /api/users/me/entitlements
