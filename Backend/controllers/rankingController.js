@@ -112,11 +112,12 @@ exports.getLeaderboard = async (req, res) => {
             const nestedPath = `${category}.${scoreField}`;
 
             const metrics = await RankMetric.find({ [nestedPath]: { $gt: 0 } })
-                .populate('userId', 'name profileImage')
+                .populate('userId', 'name profileImage isLeaderboardActive')
                 .sort({ [nestedPath]: -1 })
-                .limit(100);
+                .limit(200);
 
-            leaderboard = metrics.map((m, idx) => ({
+            const visible = metrics.filter(m => m.userId?.isLeaderboardActive !== false);
+            leaderboard = visible.map((m, idx) => ({
                 id: m.userId?._id?.toString() || m._id.toString(),
                 rank: idx + 1,
                 name: m.userId?.name || 'Unknown',

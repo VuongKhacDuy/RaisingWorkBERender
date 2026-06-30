@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/Auth/user');
 const UserProgress = require('../models/User/UserProgressModel');
 const FavoriteWord = require('../models/FavoriteWords/FavoriteWords');
+const RankMetric = require('../models/Ranking/RankMetric');
 
 // Tier definitions — stats that match each proficiency level
 const TIER_CONFIG = {
@@ -108,6 +109,13 @@ exports.seedAccounts = async (req, res) => {
                         await FavoriteWord.insertMany(wordDocs, { ordered: false }).catch(() => {});
                     }
 
+                    const xp = jitter(tierCfg.xp);
+                    await RankMetric.create({
+                        userId: user._id,
+                        academic: { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: Math.floor(xp * 0.05) },
+                        overall:  { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: Math.floor(xp * 0.05) },
+                    });
+
                     results.created.push({ email, tier, level: tierCfg.level, words: words.length });
                 } catch (err) {
                     results.errors.push(`${email}: ${err.message}`);
@@ -182,6 +190,7 @@ exports.deleteSeederAccounts = async (req, res) => {
         await User.deleteMany({ _id: { $in: targetIds }, role: 'tester' });
         await UserProgress.deleteMany({ userId: { $in: targetIds } });
         await FavoriteWord.deleteMany({ userId: { $in: targetIds } });
+        await RankMetric.deleteMany({ userId: { $in: targetIds } });
         res.status(200).json({ message: `Deleted ${targetIds.length} seeder account(s).` });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete.' });
