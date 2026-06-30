@@ -3,6 +3,7 @@ const LeagueParticipant = require('../models/Ranking/LeagueParticipant');
 const LeagueGroup = require('../models/Ranking/LeagueGroup');
 const LeagueTier = require('../models/Ranking/LeagueTier');
 const RankingHistory = require('../models/Ranking/RankingHistory');
+const User = require('../models/Auth/user');
 
 const allowedCategories = new Set(['academic', 'pet_battle', 'game_activity', 'overall']);
 const allowedTimeframes = new Set(['weekly', 'quarterly', 'total']);
@@ -72,19 +73,17 @@ exports.getLeaderboard = async (req, res) => {
         if (timeframe === 'weekly') {
             // Find user's current group
             const participant = await LeagueParticipant.findOne({ userId })
-                .populate({
-                    path: 'groupId',
-                    populate: { path: 'tierId' }
-                })
+                .populate({ path: 'groupId', populate: { path: 'tierId' } })
                 .populate('userId', 'name profileImage')
                 .sort({ updatedAt: -1 });
 
             if (participant?.groupId) {
                 const groupMembers = await LeagueParticipant.find({ groupId: participant.groupId._id })
-                    .populate('userId', 'name profileImage')
+                    .populate('userId', 'name profileImage isLeaderboardActive')
                     .sort({ grandFinalScore: -1, sundayScore: -1, qualifierScore: -1 });
 
-                leaderboard = groupMembers.map((m, idx) => mapLeaderboardEntry(m, idx, userId, participant.groupId.type));
+                const visibleMembers = groupMembers.filter(m => m.userId?.isLeaderboardActive !== false);
+                leaderboard = visibleMembers.map((m, idx) => mapLeaderboardEntry(m, idx, userId, participant.groupId.type));
 
                 userPosition = leaderboard.find(l => l.isUser);
                 const tier = participant.groupId.tierId;
@@ -96,15 +95,28 @@ exports.getLeaderboard = async (req, res) => {
                     seasonId: participant.groupId.seasonId,
                     status: participant.groupId.status,
                     phaseEndsAt: getNextPhaseEnd(participant.groupId.type),
-                    tier: tier ? {
-                        _id: tier._id,
-                        name: tier.name,
-                        level: tier.level
-                    } : null,
+                    tier: tier ? { _id: tier._id, name: tier.name, level: tier.level } : null,
                     promotionThreshold: tier?.promotionThreshold || 0,
                     demotionThreshold: tier?.demotionThreshold || 0,
                     participantCount: leaderboard.length
                 };
+            } else {
+                // No league group yet — show global top ranking as preview
+                const metrics = await RankMetric.find({ 'academic.totalXP': { $gt: 0 } })
+                    .populate('userId', 'name profileImage isLeaderboardActive')
+                    .sort({ 'academic.totalXP': -1 })
+                    .limit(50);
+
+                const visible = metrics.filter(m => m.userId?.isLeaderboardActive !== false);
+                leaderboard = visible.map((m, idx) => ({
+                    id: m.userId?._id?.toString() || m._id.toString(),
+                    rank: idx + 1,
+                    name: m.userId?.name || 'Unknown',
+                    avatar: m.userId?.profileImage || null,
+                    score: m.academic?.totalXP || 0,
+                    isUser: m.userId?._id?.toString() === userId?.toString()
+                }));
+                userPosition = leaderboard.find(l => l.isUser) || null;
             }
         } else {
             // Global leaderboards (Quarterly, Total)

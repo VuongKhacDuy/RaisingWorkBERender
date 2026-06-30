@@ -3,6 +3,9 @@ const User = require('../models/Auth/user');
 const UserProgress = require('../models/User/UserProgressModel');
 const FavoriteWord = require('../models/FavoriteWords/FavoriteWords');
 const RankMetric = require('../models/Ranking/RankMetric');
+const LeagueGroup = require('../models/Ranking/LeagueGroup');
+const LeagueParticipant = require('../models/Ranking/LeagueParticipant');
+const LeagueTier = require('../models/Ranking/LeagueTier');
 
 // Tier definitions — stats that match each proficiency level
 const TIER_CONFIG = {
@@ -45,6 +48,28 @@ function jitter(base, pct = 0.15) {
     return base + Math.floor(Math.random() * delta * 2) - delta;
 }
 
+async function getOrCreateSeederGroup() {
+    const now = new Date();
+    const week = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / 604800000);
+
+    let group = await LeagueGroup.findOne({ seasonId: 'seeder_pool', status: 'active' });
+    if (!group) {
+        let tier = await LeagueTier.findOne({ level: 1 });
+        if (!tier) {
+            tier = await LeagueTier.create({ level: 1, name: 'Initiator', promotionThreshold: 5, demotionThreshold: 0 });
+        }
+        group = await LeagueGroup.create({
+            tierId: tier._id,
+            type: 'qualifier',
+            weekNumber: week,
+            year: now.getFullYear(),
+            seasonId: 'seeder_pool',
+            status: 'active',
+        });
+    }
+    return group;
+}
+
 exports.seedAccounts = async (req, res) => {
     try {
         const { batches } = req.body;
@@ -54,6 +79,7 @@ exports.seedAccounts = async (req, res) => {
 
         const results = { created: [], skipped: [], errors: [] };
         const hashedPassword = await bcrypt.hash('Seeder@2025!', 10);
+        const seederGroup = await getOrCreateSeederGroup();
 
         for (const batch of batches) {
             const { prefix, count, tier } = batch;
@@ -110,10 +136,17 @@ exports.seedAccounts = async (req, res) => {
                     }
 
                     const xp = jitter(tierCfg.xp);
+                    const qualScore = jitter(Math.floor(xp * 0.05));
                     await RankMetric.create({
                         userId: user._id,
-                        academic: { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: Math.floor(xp * 0.05) },
-                        overall:  { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: Math.floor(xp * 0.05) },
+                        academic: { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: qualScore },
+                        overall:  { totalXP: xp, quarterlyXP: Math.floor(xp * 0.4), weeklyXP: qualScore },
+                    });
+
+                    await LeagueParticipant.create({
+                        groupId: seederGroup._id,
+                        userId: user._id,
+                        qualifierScore: qualScore,
                     });
 
                     results.created.push({ email, tier, level: tierCfg.level, words: words.length });
@@ -191,6 +224,7 @@ exports.deleteSeederAccounts = async (req, res) => {
         await UserProgress.deleteMany({ userId: { $in: targetIds } });
         await FavoriteWord.deleteMany({ userId: { $in: targetIds } });
         await RankMetric.deleteMany({ userId: { $in: targetIds } });
+        await LeagueParticipant.deleteMany({ userId: { $in: targetIds } });
         res.status(200).json({ message: `Deleted ${targetIds.length} seeder account(s).` });
     } catch (err) {
         res.status(500).json({ message: 'Failed to delete.' });
