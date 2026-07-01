@@ -210,6 +210,32 @@ exports.addWords = async (req, res) => {
     }
 };
 
+// ── CMS: update single embedded word ─────────────────────────────────────
+exports.updateWord = async (req, res) => {
+    try {
+        const { id, wordId } = req.params;
+        const collection = await VocabularyCollection.findById(id);
+        if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        const word = collection.words.id(wordId);
+        if (!word) return res.status(404).json({ message: 'Word not found.' });
+        const { word: w, ipa, partOfSpeech, meaningVi, meaningEn, examples, imageUrl, level, topic } = req.body;
+        if (w !== undefined) word.word = w;
+        if (ipa !== undefined) word.ipa = ipa;
+        if (partOfSpeech !== undefined) word.partOfSpeech = partOfSpeech;
+        if (meaningVi !== undefined) word.meaningVi = meaningVi;
+        if (meaningEn !== undefined) word.meaningEn = meaningEn;
+        if (examples !== undefined) word.examples = examples;
+        if (imageUrl !== undefined) word.imageUrl = imageUrl;
+        if (level !== undefined) word.level = level;
+        if (topic !== undefined) word.topic = topic;
+        await collection.save();
+        res.json({ data: word });
+    } catch (err) {
+        console.error('[CMS Collection] updateWord error:', err);
+        res.status(500).json({ message: 'Failed to update word.' });
+    }
+};
+
 // ── CMS: remove word by subdocument _id ──────────────────────────────────
 exports.removeWords = async (req, res) => {
     try {
