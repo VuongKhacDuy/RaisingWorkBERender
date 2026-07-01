@@ -19,12 +19,13 @@ exports.listGroups = async (req, res) => {
 
 exports.createGroup = async (req, res) => {
     try {
-        const { name, description, coverEmoji, isActive, displayOrder } = req.body;
+        const { name, description, coverEmoji, coverImage, isActive, displayOrder } = req.body;
         if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
         const group = await CollectionGroup.create({
             name: name.trim(),
             description: description?.trim() || '',
             coverEmoji: coverEmoji || '📂',
+            coverImage: coverImage?.trim() || '',
             isActive: isActive !== false,
             displayOrder: Number(displayOrder) || 0,
         });
@@ -38,12 +39,13 @@ exports.createGroup = async (req, res) => {
 exports.updateGroup = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, coverEmoji, isActive, displayOrder } = req.body;
+        const { name, description, coverEmoji, coverImage, isActive, displayOrder } = req.body;
         const group = await CollectionGroup.findById(id);
         if (!group) return res.status(404).json({ message: 'Group not found.' });
         if (name !== undefined) group.name = name.trim();
         if (description !== undefined) group.description = description.trim();
         if (coverEmoji !== undefined) group.coverEmoji = coverEmoji;
+        if (coverImage !== undefined) group.coverImage = coverImage.trim();
         if (isActive !== undefined) group.isActive = Boolean(isActive);
         if (displayOrder !== undefined) group.displayOrder = Number(displayOrder);
         await group.save();
@@ -96,7 +98,7 @@ exports.listCollections = async (req, res) => {
 
 exports.createCollection = async (req, res) => {
     try {
-        const { groupId, name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
+        const { groupId, name, description, category, coverEmoji, coverImage, difficulty, isPremium, isActive, displayOrder } = req.body;
         if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
         const collection = await VocabularyCollection.create({
             groupId: groupId || null,
@@ -104,6 +106,7 @@ exports.createCollection = async (req, res) => {
             description: description?.trim() || '',
             category: category || 'custom',
             coverEmoji: coverEmoji || '📚',
+            coverImage: coverImage?.trim() || '',
             difficulty: difficulty || 'intermediate',
             isPremium: Boolean(isPremium),
             isActive: isActive !== false,
@@ -120,13 +123,14 @@ exports.createCollection = async (req, res) => {
 exports.updateCollection = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
+        const { name, description, category, coverEmoji, coverImage, difficulty, isPremium, isActive, displayOrder } = req.body;
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
         if (name !== undefined) collection.name = name.trim();
         if (description !== undefined) collection.description = description.trim();
         if (category !== undefined) collection.category = category;
         if (coverEmoji !== undefined) collection.coverEmoji = coverEmoji;
+        if (coverImage !== undefined) collection.coverImage = coverImage.trim();
         if (difficulty !== undefined) collection.difficulty = difficulty;
         if (isPremium !== undefined) collection.isPremium = Boolean(isPremium);
         if (isActive !== undefined) collection.isActive = Boolean(isActive);

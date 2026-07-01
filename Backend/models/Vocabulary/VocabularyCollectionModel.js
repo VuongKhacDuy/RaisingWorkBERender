@@ -18,6 +18,7 @@ const VocabularyCollectionSchema = new mongoose.Schema({
     description: { type: String, trim: true, default: '' },
     category:    { type: String, enum: ['ielts','toeic','daily','grammar','topic','custom'], default: 'custom' },
     coverEmoji:  { type: String, default: '📚' },
+    coverImage:  { type: String, default: '' },
     words:       [CollectionWordSchema],
     difficulty:  { type: String, enum: ['beginner','intermediate','advanced'], default: 'intermediate' },
     isPremium:   { type: Boolean, default: false },
