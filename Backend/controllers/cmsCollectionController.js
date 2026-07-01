@@ -1,12 +1,10 @@
 const VocabularyCollection = require('../models/Vocabulary/VocabularyCollectionModel');
 const CollectionGroup = require('../models/Vocabulary/CollectionGroupModel');
-const MasterVocabulary = require('../models/Vocabulary/MasterVocabularyModel');
 
 // ── CMS: Groups CRUD ───────────────────────────────────────────────────────
 exports.listGroups = async (req, res) => {
     try {
         const groups = await CollectionGroup.find().sort({ displayOrder: 1, createdAt: -1 }).lean();
-        // Attach collection count to each group
         const counts = await VocabularyCollection.aggregate([
             { $group: { _id: '$groupId', count: { $sum: 1 } } }
         ]);
@@ -72,7 +70,7 @@ exports.deleteGroup = async (req, res) => {
     }
 };
 
-// ── CMS: list all collections (optionally filtered by groupId) ─────────────
+// ── CMS: Collections ────────────────────────────────────────────────────────
 exports.listCollections = async (req, res) => {
     try {
         const query = {};
@@ -80,20 +78,26 @@ exports.listCollections = async (req, res) => {
         const collections = await VocabularyCollection.find(query)
             .populate('groupId', 'name coverEmoji')
             .sort({ displayOrder: 1, createdAt: -1 })
+            .select('-words') // exclude embedded words for list view (save bandwidth)
             .lean();
-        res.json({ data: collections });
+        // Manually add wordCount since we excluded words
+        const withCount = await VocabularyCollection.aggregate([
+            { $match: query },
+            { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
+        ]);
+        const countMap = Object.fromEntries(withCount.map(c => [String(c._id), c.wordCount]));
+        const result = collections.map(c => ({ ...c, wordCount: countMap[String(c._id)] || 0 }));
+        res.json({ data: result });
     } catch (err) {
         console.error('[CMS Collection] list error:', err);
         res.status(500).json({ message: 'Failed to load collections.' });
     }
 };
 
-// ── CMS: create collection ─────────────────────────────────────────────────
 exports.createCollection = async (req, res) => {
     try {
         const { groupId, name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
         if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
-
         const collection = await VocabularyCollection.create({
             groupId: groupId || null,
             name: name.trim(),
@@ -104,9 +108,8 @@ exports.createCollection = async (req, res) => {
             isPremium: Boolean(isPremium),
             isActive: isActive !== false,
             displayOrder: Number(displayOrder) || 0,
-            wordIds: [],
+            words: [],
         });
-
         res.status(201).json({ data: collection });
     } catch (err) {
         console.error('[CMS Collection] create error:', err);
@@ -114,15 +117,12 @@ exports.createCollection = async (req, res) => {
     }
 };
 
-// ── CMS: update collection metadata ───────────────────────────────────────
 exports.updateCollection = async (req, res) => {
     try {
         const { id } = req.params;
         const { name, description, category, coverEmoji, difficulty, isPremium, isActive, displayOrder } = req.body;
-
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
-
         if (name !== undefined) collection.name = name.trim();
         if (description !== undefined) collection.description = description.trim();
         if (category !== undefined) collection.category = category;
@@ -131,7 +131,6 @@ exports.updateCollection = async (req, res) => {
         if (isPremium !== undefined) collection.isPremium = Boolean(isPremium);
         if (isActive !== undefined) collection.isActive = Boolean(isActive);
         if (displayOrder !== undefined) collection.displayOrder = Number(displayOrder);
-
         await collection.save();
         res.json({ data: collection });
     } catch (err) {
@@ -140,7 +139,6 @@ exports.updateCollection = async (req, res) => {
     }
 };
 
-// ── CMS: delete collection ─────────────────────────────────────────────────
 exports.deleteCollection = async (req, res) => {
     try {
         const { id } = req.params;
@@ -153,13 +151,11 @@ exports.deleteCollection = async (req, res) => {
     }
 };
 
-// ── CMS: get collection detail with words ─────────────────────────────────
+// ── CMS: get collection detail with embedded words ─────────────────────────
 exports.getCollectionDetail = async (req, res) => {
     try {
         const { id } = req.params;
-        const collection = await VocabularyCollection.findById(id)
-            .populate('wordIds', 'word ipa level partOfSpeech meaningVi meaningEn topic difficulty frequency')
-            .lean();
+        const collection = await VocabularyCollection.findById(id).lean();
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
         res.json({ data: collection });
     } catch (err) {
@@ -168,23 +164,17 @@ exports.getCollectionDetail = async (req, res) => {
     }
 };
 
-// ── CMS: set words (replace entire word list) ─────────────────────────────
+// ── CMS: set embedded words (replace entire list) ─────────────────────────
 exports.setWords = async (req, res) => {
     try {
         const { id } = req.params;
-        const { wordIds } = req.body;
-
-        if (!Array.isArray(wordIds)) return res.status(400).json({ message: 'wordIds must be an array.' });
-
+        const { words } = req.body;
+        if (!Array.isArray(words)) return res.status(400).json({ message: 'words must be an array.' });
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
-
-        // Deduplicate
-        const unique = [...new Set(wordIds.map(String))];
-        collection.wordIds = unique;
+        collection.words = words;
         await collection.save();
-
-        res.json({ data: { wordCount: unique.length } });
+        res.json({ data: { wordCount: collection.words.length } });
     } catch (err) {
         console.error('[CMS Collection] setWords error:', err);
         res.status(500).json({ message: 'Failed to update words.' });
@@ -195,54 +185,73 @@ exports.setWords = async (req, res) => {
 exports.addWords = async (req, res) => {
     try {
         const { id } = req.params;
-        const { wordIds } = req.body;
-
-        if (!Array.isArray(wordIds) || wordIds.length === 0) {
-            return res.status(400).json({ message: 'wordIds is required.' });
+        const { words } = req.body;
+        if (!Array.isArray(words) || words.length === 0) {
+            return res.status(400).json({ message: 'words is required.' });
         }
-
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
-
-        const existing = new Set(collection.wordIds.map(String));
-        for (const wid of wordIds) {
-            if (!existing.has(String(wid))) {
-                collection.wordIds.push(wid);
-                existing.add(String(wid));
+        const existingWords = new Set(collection.words.map(w => w.word.toLowerCase()));
+        for (const w of words) {
+            if (w.word && !existingWords.has(w.word.toLowerCase())) {
+                collection.words.push(w);
+                existingWords.add(w.word.toLowerCase());
             }
         }
         await collection.save();
-
-        res.json({ data: { wordCount: collection.wordIds.length } });
+        res.json({ data: { wordCount: collection.words.length } });
     } catch (err) {
         console.error('[CMS Collection] addWords error:', err);
         res.status(500).json({ message: 'Failed to add words.' });
     }
 };
 
-// ── CMS: remove words from collection ────────────────────────────────────
+// ── CMS: remove word by subdocument _id ──────────────────────────────────
 exports.removeWords = async (req, res) => {
     try {
         const { id } = req.params;
-        const { wordIds } = req.body;
-
+        const { wordIds } = req.body; // subdocument _ids
         if (!Array.isArray(wordIds)) return res.status(400).json({ message: 'wordIds is required.' });
-
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
-
         const toRemove = new Set(wordIds.map(String));
-        collection.wordIds = collection.wordIds.filter((wid) => !toRemove.has(String(wid)));
+        collection.words = collection.words.filter(w => !toRemove.has(String(w._id)));
         await collection.save();
-
-        res.json({ data: { wordCount: collection.wordIds.length } });
+        res.json({ data: { wordCount: collection.words.length } });
     } catch (err) {
         console.error('[CMS Collection] removeWords error:', err);
         res.status(500).json({ message: 'Failed to remove words.' });
     }
 };
 
-// ── iOS: public list (active only, grouped) ───────────────────────────────
+// ── CMS: bulk import words via JSON ───────────────────────────────────────
+exports.importWordsJson = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { words, mode } = req.body; // mode: 'replace' | 'append'
+        if (!Array.isArray(words)) return res.status(400).json({ message: 'words must be an array.' });
+        const collection = await VocabularyCollection.findById(id);
+        if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        if (mode === 'replace') {
+            collection.words = words;
+        } else {
+            const existingWords = new Set(collection.words.map(w => w.word.toLowerCase()));
+            for (const w of words) {
+                if (w.word && !existingWords.has(w.word.toLowerCase())) {
+                    collection.words.push(w);
+                    existingWords.add(w.word.toLowerCase());
+                }
+            }
+        }
+        await collection.save();
+        res.json({ data: { wordCount: collection.words.length, imported: words.length } });
+    } catch (err) {
+        console.error('[CMS Collection] importWords error:', err);
+        res.status(500).json({ message: 'Failed to import words.' });
+    }
+};
+
+// ── iOS: public list (active only, grouped, with embedded words) ───────────
 exports.listForIOS = async (req, res) => {
     try {
         const groups = await CollectionGroup.find({ isActive: true })
@@ -250,11 +259,9 @@ exports.listForIOS = async (req, res) => {
             .lean();
 
         const collections = await VocabularyCollection.find({ isActive: true })
-            .populate('wordIds', 'word ipa level partOfSpeech meaningVi meaningEn example topic frequency ieltsBand')
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
 
-        // Group collections by groupId
         const collsByGroup = {};
         const ungrouped = [];
         for (const col of collections) {
