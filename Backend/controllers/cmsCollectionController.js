@@ -315,3 +315,47 @@ exports.listForIOS = async (req, res) => {
         res.status(500).json({ message: 'Failed to load collections.' });
     }
 };
+
+// iOS: chỉ lấy danh sách Group (cấp 1), không có collections/words
+exports.listGroupsForIOS = async (req, res) => {
+    try {
+        const groups = await CollectionGroup.find({ isActive: true })
+            .sort({ displayOrder: 1, createdAt: -1 })
+            .lean();
+        res.json({ data: groups });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to load groups.' });
+    }
+};
+
+// iOS: lấy collections của 1 group (cấp 2), không có words
+exports.listCollectionsByGroupForIOS = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const collections = await VocabularyCollection.find({ groupId, isActive: true })
+            .select('-words')
+            .sort({ displayOrder: 1, createdAt: -1 })
+            .lean();
+        const withCount = await VocabularyCollection.aggregate([
+            { $match: { groupId: require('mongoose').Types.ObjectId.createFromHexString(groupId), isActive: true } },
+            { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
+        ]);
+        const countMap = Object.fromEntries(withCount.map(c => [String(c._id), c.wordCount]));
+        const result = collections.map(c => ({ ...c, wordCount: countMap[String(c._id)] || 0 }));
+        res.json({ data: result });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to load collections.' });
+    }
+};
+
+// iOS: lấy words của 1 collection (cấp 3)
+exports.listWordsForIOS = async (req, res) => {
+    try {
+        const { collectionId } = req.params;
+        const collection = await VocabularyCollection.findById(collectionId).select('words').lean();
+        if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        res.json({ data: collection.words });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to load words.' });
+    }
+};
