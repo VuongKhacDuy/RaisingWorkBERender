@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const NewsSchema = new mongoose.Schema({
   // --- Legacy / Existing Fields (optional for backward compatibility) ---
   imageUrl: { type: String },
+  audioUrl: { type: String, default: '' },
   title: { type: String },
   subTitle: { type: String },
   description: { type: String },
