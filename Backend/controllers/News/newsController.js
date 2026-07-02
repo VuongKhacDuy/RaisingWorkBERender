@@ -66,7 +66,10 @@ module.exports = {
   getAllNews: async (req, res) => {
     try {
       const hasPremium = await userHasPremiumAccess(req);
-      const news = await News.find().sort({ publish_date: -1, createAt: -1 });
+      const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+      let query = News.find().sort({ publish_date: -1, createAt: -1 });
+      if (limit) query = query.limit(limit);
+      const news = await query;
       const safeNews = news.filter((item) => isVisibleToApp(item)).map((item) => {
         if (item.accessLevel === "premium" && !hasPremium) {
           return toPreviewNews(item);
