@@ -6,11 +6,12 @@ const StructureStepSchema = new mongoose.Schema({
 }, { _id: false });
 
 const SampleAnswerSchema = new mongoose.Schema({
-    band: { type: String, default: '' },        // VD: "6.5", "7.5", "8.0"
-    label: { type: String, default: '' },       // VD: "Band 6.5 — Intermediate"
-    content: { type: String, default: '' },     // Bài viết mẫu
-    usefulPhrases: [{ type: String }],          // Cụm từ hay dùng
-    usefulWords: [{ type: String }],            // Từ vựng nổi bật (VD: "ubiquitous: có mặt khắp nơi")
+    band: { type: String, default: '' },
+    label: { type: String, default: '' },
+    content: { type: String, default: '' },
+    translation: { type: String, default: '' }, // Bản dịch tiếng Việt của bài mẫu
+    usefulPhrases: [{ type: String }],          // format: "cụm từ: nghĩa tiếng Việt"
+    usefulWords: [{ type: String }],            // format: "từ: nghĩa tiếng Việt"
 }, { _id: false });
 
 const ExamQuestionSchema = new mongoose.Schema({
