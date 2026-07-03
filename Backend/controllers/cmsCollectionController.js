@@ -281,6 +281,31 @@ exports.importWordsJson = async (req, res) => {
     }
 };
 
+// Import image URLs — match by word (case-insensitive), update imageUrl field
+exports.importWordImages = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { images } = req.body; // [{ word, imageUrl }]
+        if (!Array.isArray(images)) return res.status(400).json({ message: 'images must be an array of { word, imageUrl }.' });
+        const collection = await VocabularyCollection.findById(id);
+        if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        const imageMap = {};
+        for (const item of images) {
+            if (item.word && item.imageUrl) imageMap[item.word.toLowerCase()] = item.imageUrl;
+        }
+        let updated = 0;
+        for (const w of collection.words) {
+            const url = imageMap[w.word.toLowerCase()];
+            if (url) { w.imageUrl = url; updated++; }
+        }
+        await collection.save();
+        res.json({ data: { updated, total: images.length } });
+    } catch (err) {
+        console.error('[CMS Collection] importWordImages error:', err);
+        res.status(500).json({ message: 'Failed to import images.' });
+    }
+};
+
 // ── iOS: public list (active only, grouped, with embedded words) ───────────
 exports.listForIOS = async (req, res) => {
     try {

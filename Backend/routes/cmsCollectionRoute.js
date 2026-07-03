@@ -19,5 +19,6 @@ router.post('/collections/:id/words/add', ctrl.addWords);
 router.put('/collections/:id/words/:wordId', ctrl.updateWord);
 router.post('/collections/:id/words/remove', ctrl.removeWords);
 router.post('/collections/:id/words/import', ctrl.importWordsJson);
+router.patch('/collections/:id/words/import-images', ctrl.importWordImages);
 
 module.exports = router;
