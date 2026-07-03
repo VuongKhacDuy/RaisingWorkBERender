@@ -179,10 +179,20 @@ exports.getQuestion = async (req, res) => {
 
 exports.createQuestion = async (req, res) => {
     try {
-        const { collectionId, title, taskType, imageUrl, questionText, sampleAnswer, keyPoints, band, level, examDate, displayOrder, isActive } = req.body;
+        const {
+            collectionId, title, taskType, imageUrl, questionText,
+            requirements, noticePoints, keyVocabInPrompt, structureSteps, sampleAnswers,
+            sampleAnswer, keyPoints,
+            band, level, examDate, displayOrder, isActive,
+        } = req.body;
         if (!title?.trim()) return res.status(400).json({ message: 'Title is required.' });
         if (!collectionId) return res.status(400).json({ message: 'collectionId is required.' });
-        const q = await ExamQuestion.create({ collectionId, title: title.trim(), taskType, imageUrl, questionText, sampleAnswer, keyPoints, band, level, examDate, displayOrder, isActive });
+        const q = await ExamQuestion.create({
+            collectionId, title: title.trim(), taskType, imageUrl, questionText,
+            requirements, noticePoints, keyVocabInPrompt, structureSteps, sampleAnswers,
+            sampleAnswer, keyPoints,
+            band, level, examDate, displayOrder, isActive,
+        });
         res.json({ data: q });
     } catch (err) {
         res.status(500).json({ message: 'Failed to create question.' });
