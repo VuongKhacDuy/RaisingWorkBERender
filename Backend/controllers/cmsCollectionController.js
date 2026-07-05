@@ -83,8 +83,13 @@ exports.listCollections = async (req, res) => {
             .select('-words') // exclude embedded words for list view (save bandwidth)
             .lean();
         // Manually add wordCount since we excluded words
+        // Use mongoose Types.ObjectId to ensure groupId is properly cast for aggregate
+        const mongoose = require('mongoose');
+        const aggMatch = query.groupId
+            ? { groupId: new mongoose.Types.ObjectId(query.groupId) }
+            : {};
         const withCount = await VocabularyCollection.aggregate([
-            { $match: query },
+            { $match: aggMatch },
             { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
         ]);
         const countMap = Object.fromEntries(withCount.map(c => [String(c._id), c.wordCount]));
@@ -262,7 +267,9 @@ exports.importWordsJson = async (req, res) => {
         if (!Array.isArray(words)) return res.status(400).json({ message: 'words must be an array.' });
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        let importedCount = 0;
         if (mode === 'replace') {
+            importedCount = words.length;
             collection.words = words;
         } else {
             const existingWords = new Set(collection.words.map(w => w.word.toLowerCase()));
@@ -270,11 +277,12 @@ exports.importWordsJson = async (req, res) => {
                 if (w.word && !existingWords.has(w.word.toLowerCase())) {
                     collection.words.push(w);
                     existingWords.add(w.word.toLowerCase());
+                    importedCount++;
                 }
             }
         }
         await collection.save();
-        res.json({ data: { wordCount: collection.words.length, imported: words.length } });
+        res.json({ data: { wordCount: collection.words.length, imported: importedCount } });
     } catch (err) {
         console.error('[CMS Collection] importWords error:', err);
         res.status(500).json({ message: 'Failed to import words.' });
