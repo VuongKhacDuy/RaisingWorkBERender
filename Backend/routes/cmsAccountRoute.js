@@ -7,6 +7,7 @@ const cmsSeedController = require('../controllers/cmsSeedController');
 router.get('/accounts/lookup', cmsAccountController.lookupAccount);
 router.patch('/accounts/role', cmsAccountController.updateAccountRole);
 router.post('/accounts/coins', cmsAccountController.adjustAccountCoins);
+router.get('/leaderboard/accounts', cmsAccountController.listLeaderboardAccounts);
 
 // Seeder accounts
 router.post('/accounts/seed', cmsSeedController.seedAccounts);

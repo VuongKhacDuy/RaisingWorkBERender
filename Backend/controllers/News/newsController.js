@@ -66,7 +66,10 @@ module.exports = {
   getAllNews: async (req, res) => {
     try {
       const hasPremium = await userHasPremiumAccess(req);
-      const news = await News.find().sort({ publish_date: -1, createAt: -1 });
+      const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+      let query = News.find().sort({ publish_date: -1, createAt: -1 });
+      if (limit) query = query.limit(limit);
+      const news = await query;
       const safeNews = news.filter((item) => isVisibleToApp(item)).map((item) => {
         if (item.accessLevel === "premium" && !hasPremium) {
           return toPreviewNews(item);
@@ -129,9 +132,10 @@ module.exports = {
   deleteNews: async (req, res) => {
     try {
       const deleteItem = await News.findByIdAndDelete(req.params.id);
-      res.status(200).json("Topic is deleted successfully", deleteItem);
+      if (!deleteItem) return res.status(404).json({ message: "News not found" });
+      res.status(200).json({ message: "Deleted successfully" });
     } catch (error) {
-      res.status(500).json("failed to detele the topic");
+      res.status(500).json({ message: "Failed to delete news" });
     }
   },
 
