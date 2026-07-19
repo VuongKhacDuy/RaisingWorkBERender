@@ -1,8 +1,10 @@
 const mongoose = require('mongoose');
 
 const StructureStepSchema = new mongoose.Schema({
-    part: { type: String, default: '' },        // VD: "Introduction", "Body Paragraph 1"
-    guidance: { type: String, default: '' },    // Hướng dẫn viết phần đó
+    part: { type: String, default: '' },
+    guidance: { type: String, default: '' },
+    partTranslation: { type: String, default: '' },
+    guidanceTranslation: { type: String, default: '' },
 }, { _id: false });
 
 const SampleAnswerSchema = new mongoose.Schema({
@@ -20,10 +22,13 @@ const ExamQuestionSchema = new mongoose.Schema({
     taskType: { type: String, default: 'other' },
     imageUrl: { type: String, default: '' },
     questionText: { type: String, default: '' },
+    questionTranslation: { type: String, default: '' },
 
     // Phân tích đề
-    requirements: { type: String, default: '' },        // Đề yêu cầu gì (phân tích rõ)
-    noticePoints: [{ type: String }],                   // Những điểm cần chú ý trong đề
+    requirements: { type: String, default: '' },
+    requirementsTranslation: { type: String, default: '' },
+    noticePoints: [{ type: String }],
+    noticePointsTranslation: [{ type: String }],
     keyVocabInPrompt: [{ type: String }],               // Từ/cụm từ quan trọng trong đề
     structureSteps: [StructureStepSchema],              // Phát triển bài từng phần
 
