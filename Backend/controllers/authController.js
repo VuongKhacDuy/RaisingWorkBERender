@@ -200,9 +200,35 @@ const deleteMyAccount = async (req, res) => {
     }
 };
 
+const forgotPassword = async (req, res) => {
+    res.status(410).json({ message: "Not used" });
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { email, newPassword } = req.body;
+        if (!email || !newPassword)
+            return res.status(400).json({ message: "email and newPassword are required" });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ message: "No account found with this email" });
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        await user.save();
+
+        res.status(200).json({ message: "Password reset successfully" });
+    } catch (error) {
+        console.error("resetPassword error", error);
+        res.status(500).json({ message: "Failed to reset password" });
+    }
+};
+
 module.exports = {
     registerUser,
     verifyEmail,
     loginUser,
     deleteMyAccount,
+    forgotPassword,
+    resetPassword,
 };

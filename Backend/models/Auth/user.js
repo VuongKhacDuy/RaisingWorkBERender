@@ -25,6 +25,9 @@ const userSchema = new mongoose.Schema({
   verificationToken: String,
   profileImage: String,
 
+  resetOtp: { type: String, default: null },
+  resetOtpExpires: { type: Date, default: null },
+
   userDescription: {
     type: String,
     default: null,
