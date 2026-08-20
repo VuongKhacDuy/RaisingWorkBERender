@@ -361,10 +361,27 @@ exports.listForIOS = async (req, res) => {
 // iOS: chỉ lấy danh sách Group (cấp 1), không có collections/words
 exports.listGroupsForIOS = async (req, res) => {
     try {
+        const mongoose = require('mongoose');
         const groups = await CollectionGroup.find({ isActive: true })
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
-        res.json({ data: groups });
+
+        // Aggregate collectionCount + totalWordCount per group
+        const stats = await VocabularyCollection.aggregate([
+            { $match: { isActive: true } },
+            { $group: {
+                _id: '$groupId',
+                collectionCount: { $sum: 1 },
+                totalWordCount: { $sum: { $size: { $ifNull: ['$words', []] } } }
+            }}
+        ]);
+        const statsMap = Object.fromEntries(stats.map(s => [String(s._id), s]));
+        const result = groups.map(g => ({
+            ...g,
+            collectionCount: statsMap[String(g._id)]?.collectionCount || 0,
+            totalWordCount: statsMap[String(g._id)]?.totalWordCount || 0,
+        }));
+        res.json({ data: result });
     } catch (err) {
         res.status(500).json({ message: 'Failed to load groups.' });
     }
