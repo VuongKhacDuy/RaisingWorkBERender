@@ -300,7 +300,12 @@ exports.migrateSections = async (req, res) => {
 exports.listCategoriesForIOS = async (req, res) => {
     try {
         const cats = await ExamCategory.find({ isActive: true }).sort({ displayOrder: 1 }).lean();
-        res.json({ data: cats });
+        const counts = await ExamSection.aggregate([
+            { $match: { isActive: true } },
+            { $group: { _id: '$categoryId', count: { $sum: 1 } } }
+        ]);
+        const countMap = Object.fromEntries(counts.map(c => [String(c._id), c.count]));
+        res.json({ data: cats.map(c => ({ ...c, sectionCount: countMap[String(c._id)] || 0 })) });
     } catch (err) {
         res.status(500).json({ message: 'Failed.' });
     }
