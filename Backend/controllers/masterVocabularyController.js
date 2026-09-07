@@ -8,7 +8,11 @@ exports.getAllMasterVocabulary = async (req, res) => {
         const { level, topic, search } = req.query;
         let query = {};
 
-        if (level) query.level = { $regex: `^${level}$`, $options: 'i' };
+        if (level) {
+            // Normalize KID/KIDS variants → "kids" (actual value stored in DB)
+            const normalizedLevel = /^kids?$/i.test(level) ? 'kids' : level;
+            query.level = normalizedLevel;
+        }
         if (topic) query.topic = topic;
         if (search) {
             query.word = { $regex: search, $options: 'i' };
