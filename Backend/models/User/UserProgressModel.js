@@ -26,6 +26,9 @@ const userProgressSchema = new mongoose.Schema({
     largeManaPotionCount: { type: Number, default: 0 },
     superManaPotionCount: { type: Number, default: 0 },
     fullManaPotionCount: { type: Number, default: 0 },
+    reviveSmallCount: { type: Number, default: 0 },
+    reviveMediumCount: { type: Number, default: 0 },
+    reviveFullCount: { type: Number, default: 0 },
     reviewStreak: { type: Number, default: 0 },
     reviewLastReviewDate: { type: Date, default: null },
     reviewSessionRecords: {

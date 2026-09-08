@@ -32,7 +32,10 @@ const shopInventoryFields = {
     medium_mana_potion: 'mediumManaPotionCount',
     large_mana_potion: 'largeManaPotionCount',
     super_mana_potion: 'superManaPotionCount',
-    full_mana_potion: 'fullManaPotionCount'
+    full_mana_potion: 'fullManaPotionCount',
+    revive_small: 'reviveSmallCount',
+    revive_medium: 'reviveMediumCount',
+    revive_full: 'reviveFullCount'
 };
 
 const mapInventoryCounts = (progress) => Object.fromEntries(
