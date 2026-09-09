@@ -1,6 +1,28 @@
 const DailyMission = require('../models/User/DailyMissionModel');
 const MissionPool = require('../models/User/MissionPoolModel');
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+
+const MISSIONS_PER_DAY = 4;
+
+// Giữ tối đa MISSIONS_PER_DAY nhiệm vụ hôm nay, unique theo missionId rồi theo type
+// (dọn dữ liệu bị nhân đôi do bug đồng bộ id cũ giữa app và server).
+const dedupeMissions = (missions) => {
+    const seenId = new Set();
+    const seenType = new Set();
+    const result = [];
+    // Ưu tiên nhiệm vụ tạo sớm hơn để ổn định giữa các lần gọi.
+    const sorted = [...missions].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    for (const m of sorted) {
+        if (seenId.has(m.missionId)) continue;
+        if (seenType.has(m.type)) continue;
+        seenId.add(m.missionId);
+        seenType.add(m.type);
+        result.push(m);
+        if (result.length >= MISSIONS_PER_DAY) break;
+    }
+    return result;
+};
 
 const defaultPool = [
     { title: "Open UUMI Today", desc: "Open the app once today.", type: "maintainStreak", baseTarget: 1, difficulty: "Easy", xpReward: 25, coinReward: 10 },
@@ -25,7 +47,17 @@ const getDailyMissions = async (req, res) => {
         });
 
         if (missions.length >= 3) {
-            return res.status(200).json({ data: missions });
+            const kept = dedupeMissions(missions);
+            // Nếu có bản trùng thừa thì xoá hẳn để lần sau nhẹ hơn.
+            if (kept.length < missions.length) {
+                const keepIds = new Set(kept.map(m => m._id.toString()));
+                const stale = missions.filter(m => !keepIds.has(m._id.toString())).map(m => m._id);
+                if (stale.length > 0) {
+                    await DailyMission.deleteMany({ _id: { $in: stale } });
+                    console.log(`Backend: Removed ${stale.length} duplicate daily missions for user.`);
+                }
+            }
+            return res.status(200).json({ data: kept });
         }
 
         // If user has fewer than 3 (maybe from old logic), clear them and regenerate a fresh set of 3
@@ -47,20 +79,29 @@ const getDailyMissions = async (req, res) => {
         }
 
         const selected = [];
+        const usedTypes = new Set();
         const fixedTypes = ['maintainStreak', 'learnWords'];
         fixedTypes.forEach((type) => {
             const candidates = pool.filter(m => m.type === type).sort(() => 0.5 - Math.random());
-            if (candidates.length > 0) selected.push(candidates[0]);
+            if (candidates.length > 0) {
+                selected.push(candidates[0]);
+                usedTypes.add(type);
+            }
         });
 
-        if (selected.length < 4) {
-            const remaining = pool.filter(m => !selected.includes(m)).sort(() => 0.5 - Math.random());
-            selected.push(...remaining.slice(0, 4 - selected.length));
+        // Bổ sung tới 4, mỗi type chỉ 1 nhiệm vụ.
+        const remaining = pool.filter(m => !usedTypes.has(m.type)).sort(() => 0.5 - Math.random());
+        for (const m of remaining) {
+            if (selected.length >= MISSIONS_PER_DAY) break;
+            if (usedTypes.has(m.type)) continue;
+            selected.push(m);
+            usedTypes.add(m.type);
         }
 
         const newMissions = selected.map(template => ({
             userId,
-            missionId: new mongoose.Types.ObjectId().toString(),
+            // UUID để app (SwiftData) round-trip được cùng một id khi push tiến độ lên.
+            missionId: crypto.randomUUID(),
             title: template.title,
             desc: template.desc,
             type: template.type,
@@ -92,25 +133,22 @@ const syncDailyMissions = async (req, res) => {
 
         const userId = req.userId;
 
-        const bulkOps = missions.map((m) => ({
-            updateOne: {
-                filter: { userId, missionId: m.id },
-                update: {
-                    $set: {
-                        title: m.title,
-                        desc: m.desc,
-                        type: m.type,
-                        targetValue: m.targetValue,
-                        currentProgress: m.currentProgress,
-                        xpReward: m.xpReward,
-                        coinReward: m.coinReward,
-                        isCompleted: m.isCompleted,
-                        resetDate: m.resetDate || new Date(),
-                    }
-                },
-                upsert: true
-            }
-        }));
+        // upsert:false — app chỉ được cập nhật nhiệm vụ server đã phát, không tự tạo mới
+        // (tránh nhân đôi như bug cũ khi id 2 bên không khớp).
+        const bulkOps = missions
+            .filter((m) => m.id)
+            .map((m) => ({
+                updateOne: {
+                    filter: { userId, missionId: m.id },
+                    update: {
+                        $set: {
+                            currentProgress: m.currentProgress,
+                            isCompleted: m.isCompleted,
+                        }
+                    },
+                    upsert: false
+                }
+            }));
 
         if (bulkOps.length > 0) {
             await DailyMission.bulkWrite(bulkOps);
