@@ -57,7 +57,7 @@ exports.listTopics = async (req, res) => {
         if (req.query.categoryId) query.categoryId = req.query.categoryId;
         const topics = await GrammarTopic.find(query)
             .sort({ displayOrder: 1, createdAt: -1 })
-            .select('-contentBlocks -exercises')
+            .select('-contentBlocks -exerciseGroups')
             .lean();
         res.json({ data: topics });
     } catch (err) {
@@ -77,12 +77,12 @@ exports.getTopic = async (req, res) => {
 
 exports.createTopic = async (req, res) => {
     try {
-        const { categoryId, name, description, coverEmoji, isActive, displayOrder, contentBlocks, exercises } = req.body;
+        const { categoryId, name, description, coverEmoji, isActive, displayOrder, contentBlocks, exerciseGroups } = req.body;
         if (!name?.trim()) return res.status(400).json({ message: 'Name is required.' });
         if (!categoryId) return res.status(400).json({ message: 'categoryId is required.' });
         const topic = await GrammarTopic.create({
             categoryId, name: name.trim(), description, coverEmoji, isActive, displayOrder,
-            contentBlocks, exercises,
+            contentBlocks, exerciseGroups,
         });
         res.json({ data: topic });
     } catch (err) {
@@ -130,7 +130,7 @@ exports.listTopicsForCategoryForIOS = async (req, res) => {
     try {
         const topics = await GrammarTopic.find({ categoryId: req.params.categoryId, isActive: true })
             .sort({ displayOrder: 1 })
-            .select('-contentBlocks -exercises')
+            .select('-contentBlocks -exerciseGroups')
             .lean();
         res.json({ data: topics });
     } catch (err) {

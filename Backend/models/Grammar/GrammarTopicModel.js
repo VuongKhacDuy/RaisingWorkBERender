@@ -20,23 +20,33 @@ const ContentBlockSchema = new mongoose.Schema({
     },
 }, { _id: false });
 
-// Polymorphic exercise: flat `type` string + fields for every supported type living
-// side by side (same convention ExamQuestionModel uses for structureSteps/sampleAnswers).
+// One question inside an exercise group — flat `type`-driven fields living side by
+// side (same convention ExamQuestionModel uses for structureSteps/sampleAnswers).
 // Adding a new exercise type later only means adding more optional fields here.
-const ExerciseSchema = new mongoose.Schema({
+const ExerciseQuestionSchema = new mongoose.Schema({
     id: { type: String, required: true },
-    type: { type: String, required: true },   // 'multiple-choice' | 'fill-blank' | ...
     order: { type: Number, default: 0 },
-    prompt: { type: String, default: '' },
     explanation: { type: String, default: '' },
 
     // multiple-choice fields
+    prompt: { type: String, default: '' },
     options: [{ type: String }],
     correctOptionIndex: { type: Number, default: 0 },
 
     // fill-blank fields
     textWithBlanks: { type: String, default: '' },
     blankAnswers: [{ type: String }],
+}, { _id: false });
+
+// A group of questions sharing one instruction/prompt (e.g. "Put the verb into the
+// correct form" followed by 10 fill-blank sentences) — admin writes the instructions
+// once per group instead of repeating it on every question.
+const ExerciseGroupSchema = new mongoose.Schema({
+    id: { type: String, required: true },
+    type: { type: String, required: true },   // 'multiple-choice' | 'fill-blank' | ...
+    order: { type: Number, default: 0 },
+    instructions: { type: String, default: '' },
+    questions: [ExerciseQuestionSchema],
 }, { _id: false });
 
 const GrammarTopicSchema = new mongoose.Schema({
@@ -48,7 +58,7 @@ const GrammarTopicSchema = new mongoose.Schema({
     displayOrder: { type: Number, default: 0 },
 
     contentBlocks: [ContentBlockSchema],
-    exercises: [ExerciseSchema],
+    exerciseGroups: [ExerciseGroupSchema],
 }, { timestamps: true });
 
 GrammarTopicSchema.index({ categoryId: 1, displayOrder: 1 });
