@@ -17,6 +17,7 @@ const ContentBlockSchema = new mongoose.Schema({
         level: { type: Number, enum: [1, 2, 3] },          // heading only
         spans: [InlineSpanSchema],                          // paragraph / heading
         items: [[InlineSpanSchema]],                        // bulletList: one span-run per item
+        style: { type: String, enum: ['bullet', 'dash', 'number'], default: 'bullet' },  // bulletList only — marker shown before each item
     },
 }, { _id: false });
 
