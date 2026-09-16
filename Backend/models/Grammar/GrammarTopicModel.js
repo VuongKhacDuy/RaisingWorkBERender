@@ -9,13 +9,21 @@ const InlineSpanSchema = new mongoose.Schema({
     highlight: { type: Boolean, default: false },
 }, { _id: false });
 
+// One visual line inside a `paragraph` block's `lines[]`. `style` unset = plain text
+// line; set = a list-item line rendered with that marker.
+const RichLineSchema = new mongoose.Schema({
+    style: { type: String, enum: ['bullet', 'dash', 'number'] },
+    spans: [InlineSpanSchema],
+}, { _id: false });
+
 const ContentBlockSchema = new mongoose.Schema({
     id: { type: String, required: true },
     type: { type: String, enum: ['heading', 'paragraph', 'bulletList'], required: true },
     order: { type: Number, required: true },
     data: {
         level: { type: Number, enum: [1, 2, 3] },          // heading only
-        spans: [InlineSpanSchema],                          // paragraph / heading
+        spans: [InlineSpanSchema],                          // heading; paragraph legacy (pre-`lines`) fallback
+        lines: [RichLineSchema],                            // paragraph: multi-line content, some lines can be list items
         items: [[InlineSpanSchema]],                        // bulletList: one span-run per item
         style: { type: String, enum: ['bullet', 'dash', 'number'], default: 'bullet' },  // bulletList only — marker shown before each item
     },
