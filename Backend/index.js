@@ -54,6 +54,7 @@ const vocabularyCollectionRouter = require('./routes/vocabularyCollectionRoute')
 const aiContextRouter = require('./routes/aiContextRoute');
 const examRouter = require('./routes/examRoute');
 const grammarRouter = require('./routes/grammarRoute');
+const writingRouter = require('./routes/writingRoute');
 const port = 3000;
 
 // ADD THIS
@@ -102,6 +103,7 @@ app.use('/api/vocab-collections', vocabularyCollectionRouter);
 app.use('/api/ai', aiContextRouter);
 app.use('/api/exam', examRouter);
 app.use('/api/grammar', grammarRouter);
+app.use('/api/writing', writingRouter);
 app.use('/api/series', seriesStoriesRouter); // Alias for iOS app
 app.use('/api', premiumRouter); // Premium: /api/content/catalog, /api/iap/apple/transactions, /api/users/me/entitlements
 
