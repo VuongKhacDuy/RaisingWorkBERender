@@ -22,6 +22,7 @@ router.post('/cms/submissions/:id/send', ctrl.sendReview);
 
 // ── iOS routes (auth required) ──────────────────────────────────────────────
 router.get('/ios/home', authenticate, ctrl.getHomeForIOS);
+router.get('/ios/rounds/upcoming', authenticate, ctrl.listUpcomingForIOS);
 router.get('/ios/rounds/:id', authenticate, ctrl.getRoundForIOS);
 router.post('/ios/rounds/:id/submit', authenticate, ctrl.submitForIOS);
 router.get('/ios/rounds/:id/ranking', authenticate, ctrl.getRankingForIOS);

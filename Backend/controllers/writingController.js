@@ -63,27 +63,35 @@ const validateCorrections = (corrections, content) => {
 
 // ── Shapes returned to iOS ─────────────────────────────────────────────────
 
-const roundForIOS = (r) => ({
-    _id: r._id,
-    promptId: r.promptId,
-    title: r.title,
-    instruction: r.instruction,
-    hint: r.hint,
-    level: r.level,
-    minWords: r.minWords,
-    maxWords: r.maxWords,
-    coverImage: r.coverImage,
-    label: r.label,
-    startAt: r.startAt,
-    endAt: r.endAt,
-    xpReward: r.xpReward,
-    coinReward: r.coinReward,
-    participationReward: participationAmounts(r),
-    rankRewards: r.rankRewards,
-    isPremium: r.isPremium,
-    isPublished: r.publishStatus === 'published',
-    resultsPublishedAt: r.resultsPublishedAt,
-});
+// The prompt body is withheld until the round opens so nobody can draft ahead and submit first.
+const roundForIOS = (r) => {
+    const isUpcoming = new Date(r.startAt) > new Date();
+    return {
+        _id: r._id,
+        promptId: r.promptId,
+        title: r.title,
+        instruction: isUpcoming ? '' : r.instruction,
+        hint: isUpcoming ? '' : r.hint,
+        isUpcoming,
+        level: r.level,
+        minWords: r.minWords,
+        maxWords: r.maxWords,
+        coverImage: r.coverImage,
+        label: r.label,
+        startAt: r.startAt,
+        endAt: r.endAt,
+        xpReward: r.xpReward,
+        coinReward: r.coinReward,
+        participationReward: participationAmounts(r),
+        rankRewards: r.rankRewards,
+        isPremium: r.isPremium,
+        isPublished: r.publishStatus === 'published',
+        resultsPublishedAt: r.resultsPublishedAt,
+    };
+};
+
+const HOME_UPCOMING_LIMIT = 5;
+const upcomingQuery = (now) => ({ isActive: true, startAt: { $gt: now } });
 
 const submissionForIOS = (s) => ({
     _id: s._id,
@@ -453,6 +461,10 @@ exports.getHomeForIOS = async (req, res) => {
         const activeRounds = await WritingRound.find({
             isActive: true, startAt: { $lte: now }, endAt: { $gt: now },
         }).sort({ endAt: 1 }).lean();
+        const [upcomingRounds, upcomingTotal] = await Promise.all([
+            WritingRound.find(upcomingQuery(now)).sort({ startAt: 1 }).limit(HOME_UPCOMING_LIMIT).lean(),
+            WritingRound.countDocuments(upcomingQuery(now)),
+        ]);
 
         const mySubs = await WritingSubmission.find({
             userId,
@@ -476,6 +488,9 @@ exports.getHomeForIOS = async (req, res) => {
         res.json({
             data: {
                 active: activeRounds.map(withMine),
+                // Nearest rounds that haven't opened yet (prompt body withheld by roundForIOS).
+                upcoming: upcomingRounds.map(roundForIOS),
+                upcomingTotal,
                 // Rounds that ended but whose ranking isn't published yet, where I submitted.
                 awaitingResults: otherRounds.filter(r => r.publishStatus !== 'published').map(withMine),
                 // Published rounds whose result I haven't acknowledged yet.
@@ -490,6 +505,23 @@ exports.getHomeForIOS = async (req, res) => {
     }
 };
 
+exports.listUpcomingForIOS = async (req, res) => {
+    try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 50);
+        const now = new Date();
+        const rounds = await WritingRound.find(upcomingQuery(now))
+            .sort({ startAt: 1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+        res.json({ data: rounds.map(roundForIOS) });
+    } catch (err) {
+        console.error('[Writing.listUpcomingForIOS]', err);
+        res.status(500).json({ message: 'Failed to load upcoming rounds.' });
+    }
+};
+
 exports.getRoundForIOS = async (req, res) => {
     try {
         if (!isId(req.params.id)) return res.status(404).json({ message: 'Not found.' });
@@ -497,8 +529,7 @@ exports.getRoundForIOS = async (req, res) => {
         if (!round) return res.status(404).json({ message: 'Not found.' });
 
         const sub = await WritingSubmission.findOne({ userId: req.userId, roundId: round._id }).lean();
-        const visible = round.isActive && new Date(round.startAt) <= new Date();
-        if (!visible && !sub) return res.status(404).json({ message: 'Not found.' });
+        if (!round.isActive && !sub) return res.status(404).json({ message: 'Not found.' });
 
         res.json({ data: { round: roundForIOS(round), mySubmission: sub ? submissionForIOS(sub) : null } });
     } catch (err) {
