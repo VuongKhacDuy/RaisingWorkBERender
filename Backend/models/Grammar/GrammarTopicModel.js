@@ -29,34 +29,8 @@ const ContentBlockSchema = new mongoose.Schema({
     },
 }, { _id: false });
 
-// One question inside an exercise group — flat `type`-driven fields living side by
-// side (same convention ExamQuestionModel uses for structureSteps/sampleAnswers).
-// Adding a new exercise type later only means adding more optional fields here.
-const ExerciseQuestionSchema = new mongoose.Schema({
-    id: { type: String, required: true },
-    order: { type: Number, default: 0 },
-    explanation: { type: String, default: '' },
-
-    // multiple-choice fields
-    prompt: { type: String, default: '' },
-    options: [{ type: String }],
-    correctOptionIndex: { type: Number, default: 0 },
-
-    // fill-blank fields
-    textWithBlanks: { type: String, default: '' },
-    blankAnswers: [{ type: String }],
-}, { _id: false });
-
-// A group of questions sharing one instruction/prompt (e.g. "Put the verb into the
-// correct form" followed by 10 fill-blank sentences) — admin writes the instructions
-// once per group instead of repeating it on every question.
-const ExerciseGroupSchema = new mongoose.Schema({
-    id: { type: String, required: true },
-    type: { type: String, required: true },   // 'multiple-choice' | 'fill-blank' | ...
-    order: { type: Number, default: 0 },
-    instructions: { type: String, default: '' },
-    questions: [ExerciseQuestionSchema],
-}, { _id: false });
+// Exercise schemas are shared with TopicModel (short story comprehension questions)
+const { ExerciseGroupSchema } = require('../shared/ExerciseSchemas');
 
 const GrammarTopicSchema = new mongoose.Schema({
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'GrammarCategory', required: true },
