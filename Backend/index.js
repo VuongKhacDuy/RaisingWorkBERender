@@ -30,6 +30,7 @@ const nodemailer = require("nodemailer");
 const app = express();
 const authRouter = require('./routes/authRoute');
 const topicRouter = require('./routes/topicsRoute')
+const storyCategoryRouter = require('./routes/storyCategoryRoute');
 const newsRouter = require('./routes/newsRoute')
 const seriesStoriesRouter = require('./routes/seriesStoriesRoute');
 const uploadImageSeriesRoute = require('./routes/uploadImageSeriesRoute');
@@ -78,6 +79,7 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ limit: '10mb', extended: true }))
 
 app.use('/api/topics', topicRouter)
+app.use('/api/story-categories', storyCategoryRouter);
 app.use('/api/news', newsRouter)
 app.use('/api/upload/images', uploadImageSeriesRoute);
 app.use('/api/series_stories', seriesStoriesRouter);

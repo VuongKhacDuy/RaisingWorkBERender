@@ -48,9 +48,39 @@ const parseTopicCursor = (cursor) => {
   };
 };
 
+// Normalize CMS input for level / categories and derive readingMinutes from the text.
+// Returns { set, unset } so an empty level clears the field on edit.
+const WORDS_PER_MINUTE = 150;
+const prepareTopicBody = (body) => {
+  const set = { ...body };
+  const unset = {};
+  delete set.numbRead; // only changed by POST /:id/read
+  delete set.numbLike;
+
+  if ("level" in body) {
+    const level = typeof body.level === "string" ? body.level.trim().toUpperCase() : "";
+    if (Topic.LEVELS.includes(level)) set.level = level;
+    else { delete set.level; unset.level = ""; }
+  }
+  if ("categoryIds" in body) {
+    set.categoryIds = (Array.isArray(body.categoryIds) ? body.categoryIds : [])
+      .filter(id => mongoose.isValidObjectId(id));
+  }
+  if (typeof body.description === "string") {
+    const words = body.description.trim().split(/\s+/).filter(Boolean).length;
+    set.readingMinutes = Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+  }
+  return { set, unset };
+};
+
+// Popular order depends on numbRead, which keeps changing — paged by offset ("o:<n>").
+const POPULAR_SORT = { numbRead: -1, createAt: -1, _id: -1 };
+const NEWEST_SORT = { createAt: -1, _id: -1 };
+const LIST_FIELDS = "_id title subTitle imageUrl createAt level categoryIds readingMinutes numbRead";
+
 module.exports = {
   createTopic: async (req, res) => {
-    const newTopic = new Topic(req.body);
+    const newTopic = new Topic(prepareTopicBody(req.body).set);
     try {
       await newTopic.save();
       res.status(200).json("Topic is created successfully");
@@ -62,7 +92,9 @@ module.exports = {
   // GET /api/topics
   //   no `limit`  → legacy: full array of full docs (CMS + old app versions)
   //   `limit`     → list mode: { items, nextCursor, hasMore } with light fields only
-  //                 optional `cursor` (from previous page) and `q` (search title/subTitle)
+  //                 optional `cursor` (from previous page), `q` (search title/subTitle),
+  //                 `level` (A1–C2, comma list ok), `category` (StoryCategory id),
+  //                 `sort=new|popular` (popular = numbRead, paged by offset cursor "o:<n>")
   getAllTopics: async (req, res) => {
     try {
       if (req.query.limit === undefined) {
@@ -76,15 +108,36 @@ module.exports = {
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
       if (q) filters.push({ $text: { $search: q } });
 
+      if (typeof req.query.level === "string" && req.query.level.trim()) {
+        const levels = req.query.level.split(",").map(l => l.trim().toUpperCase())
+          .filter(l => Topic.LEVELS.includes(l));
+        if (!levels.length) return res.status(400).json({ message: "Invalid level" });
+        filters.push({ level: { $in: levels } });
+      }
+
+      if (typeof req.query.category === "string" && req.query.category.trim()) {
+        if (!mongoose.isValidObjectId(req.query.category)) return res.status(400).json({ message: "Invalid category" });
+        filters.push({ categoryIds: new mongoose.Types.ObjectId(req.query.category) });
+      }
+
+      const popular = req.query.sort === "popular";
+      let offset = 0;
       if (req.query.cursor) {
-        const cursorFilter = parseTopicCursor(req.query.cursor);
-        if (!cursorFilter) return res.status(400).json({ message: "Invalid cursor" });
-        filters.push(cursorFilter);
+        if (popular) {
+          const m = /^o:(\d+)$/.exec(req.query.cursor);
+          if (!m) return res.status(400).json({ message: "Invalid cursor" });
+          offset = parseInt(m[1], 10);
+        } else {
+          const cursorFilter = parseTopicCursor(req.query.cursor);
+          if (!cursorFilter) return res.status(400).json({ message: "Invalid cursor" });
+          filters.push(cursorFilter);
+        }
       }
 
       const docs = await Topic.find(filters.length ? { $and: filters } : {})
-        .select("_id title subTitle imageUrl createAt")
-        .sort({ createAt: -1, _id: -1 })
+        .select(LIST_FIELDS)
+        .sort(popular ? POPULAR_SORT : NEWEST_SORT)
+        .skip(offset)
         .limit(limit + 1)
         .lean();
 
@@ -94,7 +147,8 @@ module.exports = {
         imageUrl: topicImageUrl(req, doc),
       }));
       const last = items[items.length - 1];
-      const nextCursor = hasMore && last ? makeTopicCursor(last) : null;
+      const nextCursor = !hasMore || !last ? null
+        : popular ? `o:${offset + items.length}` : makeTopicCursor(last);
 
       res.status(200).json({ items, nextCursor, hasMore });
     } catch (error) {
@@ -125,6 +179,19 @@ module.exports = {
       res.status(200).send(buffer);
     } catch (error) {
       res.status(500).json("failed to get the topic image");
+    }
+  },
+
+  // POST /api/topics/:id/read — the app calls this once per story per session.
+  markRead: async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: "Topic not found" });
+      const topic = await Topic.findByIdAndUpdate(req.params.id, { $inc: { numbRead: 1 } }, { new: true })
+        .select("numbRead").lean();
+      if (!topic) return res.status(404).json({ message: "Topic not found" });
+      res.status(200).json({ numbRead: topic.numbRead });
+    } catch (error) {
+      res.status(500).json("failed to mark the topic as read");
     }
   },
 
@@ -160,9 +227,10 @@ module.exports = {
   },
   editTopic: async (req, res) => {
     try {
+      const { set, unset } = prepareTopicBody(req.body);
       const updatedTopic = await Topic.findByIdAndUpdate(
         req.params.id,
-        req.body,
+        Object.keys(unset).length ? { $set: set, $unset: unset } : set,
         { new: true }
       );
       if (!updatedTopic) {
