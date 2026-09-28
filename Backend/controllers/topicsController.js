@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Topic = require("../models/TopicModel");
+const StoryCategory = require("../models/StoryCategoryModel");
 
 // New topics store a plain image URL (pasted in the CMS, like News). Legacy topics
 // hold base64 (with or without a data: prefix) — in list mode those are swapped for
@@ -179,6 +180,34 @@ module.exports = {
       res.status(200).send(buffer);
     } catch (error) {
       res.status(500).json("failed to get the topic image");
+    }
+  },
+
+  // GET /api/topics/facets — story counts per level / active category, so the app only
+  // offers filters that return something. Empty groups are left out.
+  getFacets: async (req, res) => {
+    try {
+      const [levelCounts, categoryCounts, categories] = await Promise.all([
+        Topic.aggregate([
+          { $match: { level: { $in: Topic.LEVELS } } },
+          { $group: { _id: "$level", count: { $sum: 1 } } },
+        ]),
+        Topic.aggregate([
+          { $unwind: "$categoryIds" },
+          { $group: { _id: "$categoryIds", count: { $sum: 1 } } },
+        ]),
+        StoryCategory.find({ isActive: true }).sort({ displayOrder: 1, name: 1 }).lean(),
+      ]);
+      const levelMap = Object.fromEntries(levelCounts.map(l => [l._id, l.count]));
+      const categoryMap = Object.fromEntries(categoryCounts.map(c => [String(c._id), c.count]));
+      res.status(200).json({
+        levels: Topic.LEVELS.filter(l => levelMap[l]).map(l => ({ level: l, count: levelMap[l] })),
+        categories: categories
+          .filter(c => categoryMap[String(c._id)])
+          .map(c => ({ _id: c._id, name: c.name, count: categoryMap[String(c._id)] })),
+      });
+    } catch (error) {
+      res.status(500).json("failed to get topic facets");
     }
   },
 

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const topicController = require('../controllers/topicsController')
 
 router.get('/', topicController.getAllTopics)
+router.get('/facets', topicController.getFacets)
 router.get('/:id/image', topicController.getTopicImage)
 router.get('/:id', topicController.getTopic)
 router.get('/search/:key', topicController.searchTopic)
