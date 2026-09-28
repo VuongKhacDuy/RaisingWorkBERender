@@ -1,6 +1,27 @@
 const mongoose = require("mongoose");
 const Topic = require("../models/TopicModel");
 
+// New topics store a plain image URL (pasted in the CMS, like News). Legacy topics
+// hold base64 (with or without a data: prefix) — in list mode those are swapped for
+// GET /api/topics/:id/image so the payload stays small.
+const isRemoteImage = (value) => typeof value === "string" && /^https?:\/\//i.test(value.trim());
+
+// Legacy base64 never changes in place: the CMS now only writes URLs, so a new cover
+// replaces the base64 entirely → the endpoint response can be cached forever.
+const topicImageUrl = (req, doc) => {
+  if (!doc.imageUrl || isRemoteImage(doc.imageUrl)) return doc.imageUrl;
+  // Behind Render's proxy req.protocol is "http" — iOS ATS needs the real https scheme
+  const proto = (req.get("x-forwarded-proto") || req.protocol).split(",")[0].trim();
+  return `${proto}://${req.get("host")}/api/topics/${doc._id}/image`;
+};
+
+const sniffImageType = (buf) => {
+  if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
+  if (buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
+  if (buf.slice(0, 4).toString() === "RIFF" && buf.slice(8, 12).toString() === "WEBP") return "image/webp";
+  return "image/jpeg";
+};
+
 // Cursor = "<createAt ISO | null>_<_id>" of the last item on the previous page.
 const makeTopicCursor = (doc) =>
   `${doc.createAt ? new Date(doc.createAt).toISOString() : "null"}_${doc._id}`;
@@ -68,13 +89,42 @@ module.exports = {
         .lean();
 
       const hasMore = docs.length > limit;
-      const items = hasMore ? docs.slice(0, limit) : docs;
+      const items = (hasMore ? docs.slice(0, limit) : docs).map(doc => ({
+        ...doc,
+        imageUrl: topicImageUrl(req, doc),
+      }));
       const last = items[items.length - 1];
       const nextCursor = hasMore && last ? makeTopicCursor(last) : null;
 
       res.status(200).json({ items, nextCursor, hasMore });
     } catch (error) {
       res.status(500).json("failed to get all topics");
+    }
+  },
+
+  // GET /api/topics/:id/image — decodes a legacy base64 cover into a real image response.
+  // Topics that already store a URL are redirected there.
+  getTopicImage: async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).end();
+      const topic = await Topic.findById(req.params.id).select("imageUrl").lean();
+      const value = topic?.imageUrl?.trim();
+      if (!value) return res.status(404).end();
+      if (isRemoteImage(value)) return res.redirect(302, value);
+
+      const match = value.match(/^data:([^;,]+)?(?:;base64)?,(.*)$/s);
+      const base64 = match ? match[2] : value;
+      const buffer = Buffer.from(base64, "base64");
+      if (!buffer.length) return res.status(404).end();
+
+      res.set({
+        "Content-Type": match?.[1] || sniffImageType(buffer),
+        "Content-Length": buffer.length,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      });
+      res.status(200).send(buffer);
+    } catch (error) {
+      res.status(500).json("failed to get the topic image");
     }
   },
 
