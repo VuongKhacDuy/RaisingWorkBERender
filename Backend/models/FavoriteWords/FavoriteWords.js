@@ -46,7 +46,10 @@ const favoriteWordSchema = new mongoose.Schema({
     // Where the word came from
     source: {
         type: String,
-        enum: ["manual", "system", "news", "story"],
+        enum: [
+            "manual", "system", "news", "story", "book", "exam", "collection",
+            "learning_tool", "learning_tool_ai", "learning_tool_dictionary",
+        ],
         default: "manual",
     },
 
