@@ -31,6 +31,8 @@ const NewsSchema = new mongoose.Schema({
   tags: [{ type: String }],
   publish_date: { type: String },
   estimated_reading_minutes: { type: Number },
+  // Opened-in-app counter for the "Most read" sort (POST /api/news/:id/read)
+  numbRead: { type: Number, default: 0 },
   
   source: {
     publisher: { type: String },
@@ -119,5 +121,9 @@ const NewsSchema = new mongoose.Schema({
     }
   }
 });
+
+// All News list (GET /api/news/list): visible items, newest / most read first
+NewsSchema.index({ status: 1, publish_date: -1, createAt: -1, _id: -1 });
+NewsSchema.index({ status: 1, numbRead: -1, publish_date: -1, _id: -1 });
 
 module.exports = mongoose.model("News", NewsSchema);

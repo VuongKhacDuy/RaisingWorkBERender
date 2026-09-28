@@ -6,11 +6,14 @@ const newsController = require('../controllers/News/newsController')
 router.post('/', newsController.createNews),
 // router.post('/', upload.single('imageUrl'), newsController.createNews),
 router.get('/', newsController.getAllNews),
+router.get('/list', newsController.listNews),
+router.get('/facets', newsController.getNewsFacets),
 router.get('/cms', newsController.getAllNewsForCms),
 router.get('/cms/:id', newsController.getNewsForCms),
 router.get('/:id', newsController.getNews),
 
 router.post('/delete/:id', newsController.deleteNews)
+router.post('/:id/read', newsController.markNewsRead)
 router.post('/:id', newsController.updateNews)
 router.put('/:id', newsController.updateNews)
 
