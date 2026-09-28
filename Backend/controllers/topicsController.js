@@ -91,7 +91,8 @@ module.exports = {
   },
 
   // GET /api/topics
-  //   no `limit`  → legacy: full array of full docs (CMS + old app versions)
+  //   no `limit`  → legacy: full array of full docs (old app versions);
+  //                 `?view=cms` → same array, light (no exerciseGroups, base64 → image URL)
   //   `limit`     → list mode: { items, nextCursor, hasMore } with light fields only
   //                 optional `cursor` (from previous page), `q` (search title/subTitle),
   //                 `level` (A1–C2, comma list ok), `category` (StoryCategory id),
@@ -99,6 +100,12 @@ module.exports = {
   getAllTopics: async (req, res) => {
     try {
       if (req.query.limit === undefined) {
+        // CMS list (`?view=cms`): full text but no questions, and legacy base64 covers
+        // swapped for the image endpoint — the raw array is ~14MB with base64 inlined.
+        if (req.query.view === "cms") {
+          const docs = await Topic.find().select("-exerciseGroups").sort(NEWEST_SORT).lean();
+          return res.status(200).json(docs.map(doc => ({ ...doc, imageUrl: topicImageUrl(req, doc) })));
+        }
         const topic = await Topic.find().sort({ createAt: -1, _id: -1 });
         return res.status(200).json(topic);
       }
