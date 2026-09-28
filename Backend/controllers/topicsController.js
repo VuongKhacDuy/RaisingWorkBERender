@@ -77,7 +77,8 @@ const prepareTopicBody = (body) => {
 // Popular order depends on numbRead, which keeps changing — paged by offset ("o:<n>").
 const POPULAR_SORT = { numbRead: -1, createAt: -1, _id: -1 };
 const NEWEST_SORT = { createAt: -1, _id: -1 };
-const LIST_FIELDS = "_id title subTitle imageUrl createAt level categoryIds readingMinutes numbRead";
+// `reference` (author/source) is shown on the Home cards
+const LIST_FIELDS = "_id title subTitle reference imageUrl createAt level categoryIds readingMinutes numbRead";
 
 module.exports = {
   createTopic: async (req, res) => {
