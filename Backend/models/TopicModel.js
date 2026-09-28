@@ -26,11 +26,6 @@ TopicSchema.index({ createAt: -1, _id: -1 });
 TopicSchema.index({ level: 1, createAt: -1, _id: -1 });
 TopicSchema.index({ categoryIds: 1, createAt: -1, _id: -1 });
 TopicSchema.index({ numbRead: -1, createAt: -1, _id: -1 });
-// Search by title / subtitle (default_language 'none' → no English stemming / stopwords)
-TopicSchema.index(
-  { title: "text", subTitle: "text" },
-  { weights: { title: 3, subTitle: 1 }, default_language: "none", name: "topic_title_text" }
-);
 
 TopicSchema.statics.LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 

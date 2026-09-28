@@ -23,6 +23,8 @@ const sniffImageType = (buf) => {
   return "image/jpeg";
 };
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // Cursor = "<createAt ISO | null>_<_id>" of the last item on the previous page.
 const makeTopicCursor = (doc) =>
   `${doc.createAt ? new Date(doc.createAt).toISOString() : "null"}_${doc._id}`;
@@ -114,8 +116,13 @@ module.exports = {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
       const filters = [];
 
+      // Partial, case-insensitive match on title / subtitle ("w", "walk", "rain walking"):
+      // every typed word must appear somewhere, in any order. ($text only matched whole words.)
       const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-      if (q) filters.push({ $text: { $search: q } });
+      for (const term of q.split(/\s+/).filter(Boolean).slice(0, 5)) {
+        const rx = new RegExp(escapeRegex(term), "i");
+        filters.push({ $or: [{ title: rx }, { subTitle: rx }] });
+      }
 
       if (typeof req.query.level === "string" && req.query.level.trim()) {
         const levels = req.query.level.split(",").map(l => l.trim().toUpperCase())
