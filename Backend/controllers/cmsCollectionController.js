@@ -76,7 +76,9 @@ exports.deleteGroup = async (req, res) => {
 exports.listCollections = async (req, res) => {
     try {
         const query = {};
-        if (req.query.groupId) query.groupId = req.query.groupId;
+        // groupId=none → collection lẻ (không thuộc nhóm nào)
+        if (req.query.groupId === 'none') query.groupId = null;
+        else if (req.query.groupId) query.groupId = req.query.groupId;
         const collections = await VocabularyCollection.find(query)
             .populate('groupId', 'name coverEmoji')
             .sort({ displayOrder: 1, createdAt: -1 })
@@ -85,9 +87,11 @@ exports.listCollections = async (req, res) => {
         // Manually add wordCount since we excluded words
         // Use mongoose Types.ObjectId to ensure groupId is properly cast for aggregate
         const mongoose = require('mongoose');
-        const aggMatch = query.groupId
-            ? { groupId: new mongoose.Types.ObjectId(query.groupId) }
-            : {};
+        const aggMatch = query.groupId === null
+            ? { groupId: null }
+            : query.groupId
+                ? { groupId: new mongoose.Types.ObjectId(query.groupId) }
+                : {};
         const withCount = await VocabularyCollection.aggregate([
             { $match: aggMatch },
             { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
@@ -128,9 +132,10 @@ exports.createCollection = async (req, res) => {
 exports.updateCollection = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, category, coverEmoji, coverImage, difficulty, isPremium, isActive, displayOrder } = req.body;
+        const { groupId, name, description, category, coverEmoji, coverImage, difficulty, isPremium, isActive, displayOrder } = req.body;
         const collection = await VocabularyCollection.findById(id);
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        if (groupId !== undefined) collection.groupId = groupId || null; // null = collection lẻ
         if (name !== undefined) collection.name = name.trim();
         if (description !== undefined) collection.description = description.trim();
         if (category !== undefined) collection.category = category;
@@ -397,6 +402,25 @@ exports.listCollectionsByGroupForIOS = async (req, res) => {
             .lean();
         const withCount = await VocabularyCollection.aggregate([
             { $match: { groupId: require('mongoose').Types.ObjectId.createFromHexString(groupId), isActive: true } },
+            { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
+        ]);
+        const countMap = Object.fromEntries(withCount.map(c => [String(c._id), c.wordCount]));
+        const result = collections.map(c => ({ ...c, wordCount: countMap[String(c._id)] || 0 }));
+        res.json({ data: result });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to load collections.' });
+    }
+};
+
+// iOS: collection lẻ (không thuộc nhóm), không có words — hiện thẳng ở Home cạnh các Group
+exports.listUngroupedForIOS = async (req, res) => {
+    try {
+        const collections = await VocabularyCollection.find({ groupId: null, isActive: true })
+            .select('-words')
+            .sort({ displayOrder: 1, createdAt: -1 })
+            .lean();
+        const withCount = await VocabularyCollection.aggregate([
+            { $match: { groupId: null, isActive: true } },
             { $project: { wordCount: { $size: { $ifNull: ['$words', []] } } } }
         ]);
         const countMap = Object.fromEntries(withCount.map(c => [String(c._id), c.wordCount]));

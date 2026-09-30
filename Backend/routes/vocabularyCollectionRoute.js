@@ -6,6 +6,7 @@ const ctrl = require('../controllers/cmsCollectionController');
 router.get('/', ctrl.listForIOS);
 router.get('/groups', ctrl.listGroupsForIOS);
 router.get('/by-group/:groupId', ctrl.listCollectionsByGroupForIOS);
+router.get('/ungrouped', ctrl.listUngroupedForIOS);
 router.get('/:collectionId/words', ctrl.listWordsForIOS);
 
 module.exports = router;
