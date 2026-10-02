@@ -5,12 +5,15 @@ const {
   getCatalog,
   getPackageById,
   verifyAppleTransaction,
+  handleAppleNotification,
   getEntitlements,
 } = require("../controllers/premiumController");
 
 // Public — no authentication needed
 router.get("/content/catalog", getCatalog);
 router.get("/content/packages/:id", getPackageById);
+// Called by Apple (App Store Server Notifications V2) — authenticity comes from the JWS signature
+router.post("/iap/apple/notifications", handleAppleNotification);
 
 // Protected — require valid JWT
 router.post("/iap/apple/transactions", authenticate, verifyAppleTransaction);

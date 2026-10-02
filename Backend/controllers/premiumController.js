@@ -1,6 +1,7 @@
 const ContentPackage = require("../models/ContentPackageModel");
 const User = require("../models/Auth/user");
 const { userHasPremiumAccess } = require("../utils/premiumAccess");
+const appleIap = require("../services/appleIapService");
 
 // ─────────────────────────────────────────────
 // GET /api/content/catalog   (public — no auth)
@@ -60,49 +61,121 @@ const getPackageById = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // POST /api/iap/apple/transactions   (auth required)
-// Body: { signedTransaction: string }
-// Records the purchase and marks user as premium
-// NOTE: In production, verify the transaction with Apple's API.
+// Body: { signedTransaction: string }  — StoreKit 2 JWS (VerificationResult.jwsRepresentation)
+// Verifies the JWS with Apple's root certificates, checks it belongs to this user
+// (appAccountToken) and grants premium until the real expiresDate.
 // ─────────────────────────────────────────────
 const verifyAppleTransaction = async (req, res) => {
   try {
     const userId = req.userId; // set by authenticate middleware
     const { signedTransaction } = req.body;
 
-    if (!signedTransaction) {
+    if (!signedTransaction || typeof signedTransaction !== "string") {
       return res
         .status(400)
-        .json({ message: "signedTransaction is required" });
+        .json({ success: false, message: "signedTransaction is required" });
     }
 
-    // ── Production TODO ──────────────────────────────────────────────────────
-    // Verify the signed transaction with Apple's App Store Server API:
-    // https://developer.apple.com/documentation/appstoreserverapi
-    // const appleResult = await verifyWithApple(signedTransaction);
-    // if (!appleResult.valid) return res.status(402).json({ message: "Invalid transaction" });
-    // ────────────────────────────────────────────────────────────────────────
+    const payload = await appleIap.verifyTransaction(signedTransaction);
 
-    // Grant premium for 1 month (adjust based on actual product duration)
-    const expiresAt = new Date();
-    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    if (!appleIap.isPremiumProduct(payload)) {
+      return res.status(400).json({ success: false, message: "Unknown product" });
+    }
 
-    await User.findByIdAndUpdate(userId, {
-      isPremium: true,
-      premiumExpiresAt: expiresAt,
-    });
+    const expectedToken = appleIap.appAccountTokenForUser(userId);
+    if (String(payload.appAccountToken || "").toLowerCase() !== expectedToken) {
+      return res.status(403).json({
+        success: false,
+        message: "This purchase belongs to a different UUMI account",
+      });
+    }
+
+    const subscription = await appleIap.recordTransaction(payload, { userId, source: "app" });
+    const state = await appleIap.syncUserPremium(userId);
+
+    if (!appleIap.isActive(subscription)) {
+      return res.status(402).json({
+        success: false,
+        message: "Subscription is expired or refunded",
+        isPremium: Boolean(state?.isPremium),
+      });
+    }
 
     console.log(
-      `[verifyAppleTransaction] Granted premium to user ${userId} until ${expiresAt}`
+      `[verifyAppleTransaction] user ${userId} premium until ${state?.expiresAt?.toISOString()} (${payload.productId}, ${payload.environment})`
     );
 
     return res.status(200).json({
+      success: true,
       message: "Premium activated",
-      isPremium: true,
-      expiresAt: expiresAt.toISOString(),
+      isPremium: Boolean(state?.isPremium),
+      expiresAt: state?.expiresAt ? state.expiresAt.toISOString() : null,
     });
   } catch (error) {
+    if (error instanceof appleIap.IapError) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     console.error("[verifyAppleTransaction] Error:", error);
-    return res.status(500).json({ message: "Failed to verify transaction" });
+    return res.status(500).json({ success: false, message: "Failed to verify transaction" });
+  }
+};
+
+// ─────────────────────────────────────────────
+// POST /api/iap/apple/notifications   (public — called by Apple)
+// App Store Server Notifications V2. Body: { signedPayload: string }
+// Configure this URL in App Store Connect → App Information → App Store Server Notifications.
+// Non-2xx → Apple retries, so only fail on our own errors (DB), not on bad payloads.
+// ─────────────────────────────────────────────
+const handleAppleNotification = async (req, res) => {
+  const { signedPayload } = req.body || {};
+  if (!signedPayload) {
+    return res.status(400).json({ success: false, message: "signedPayload is required" });
+  }
+
+  let notification;
+  try {
+    notification = await appleIap.verifyNotification(signedPayload);
+  } catch (error) {
+    console.warn("[appleNotification] Rejected payload:", error.message);
+    return res.status(400).json({ success: false, message: "Invalid signedPayload" });
+  }
+
+  const { notificationType: type, subtype = null, data } = notification;
+  try {
+    if (type === "TEST" || !data?.signedTransactionInfo) {
+      console.log(`[appleNotification] ${type} received (${data?.environment ?? "-"})`);
+      return res.status(200).json({ success: true });
+    }
+
+    const payload = await appleIap.verifyTransaction(data.signedTransactionInfo);
+    if (!appleIap.isPremiumProduct(payload)) {
+      return res.status(200).json({ success: true });
+    }
+    const renewalInfo = data.signedRenewalInfo
+      ? await appleIap.verifyRenewalInfo(data.signedRenewalInfo)
+      : null;
+
+    const subscription = await appleIap.recordTransaction(payload, {
+      source: "notification",
+      type,
+      subtype,
+      renewalInfo,
+    });
+    if (subscription.userId) {
+      await appleIap.syncUserPremium(subscription.userId);
+    }
+
+    console.log(
+      `[appleNotification] ${type}${subtype ? "/" + subtype : ""} ${payload.originalTransactionId} user=${subscription.userId ?? "-"}`
+    );
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    if (error instanceof appleIap.IapError) {
+      console.warn(`[appleNotification] ${type} ignored:`, error.message);
+      return res.status(200).json({ success: true });
+    }
+    console.error("[appleNotification] Error:", error);
+    return res.status(500).json({ success: false, message: "Failed to process notification" });
   }
 };
 
@@ -158,5 +231,6 @@ module.exports = {
   getCatalog,
   getPackageById,
   verifyAppleTransaction,
+  handleAppleNotification,
   getEntitlements,
 };

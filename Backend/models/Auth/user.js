@@ -73,6 +73,25 @@ const userSchema = new mongoose.Schema({
     default: null,
   },
 
+  // Set when premium comes from an Apple subscription (see services/appleIapService.js).
+  // null → premium (if any) was granted manually from the CMS.
+  appleOriginalTransactionId: {
+    type: String,
+    default: null,
+    index: true,
+  },
+
+  premiumProductId: {
+    type: String,
+    default: null,
+  },
+
+  // "Production" | "Sandbox" — sandbox = TestFlight / App Review / dev builds
+  premiumEnvironment: {
+    type: String,
+    default: null,
+  },
+
   // "user" | "admin" — admin gets permanent premium access
   role: {
     type: String,
