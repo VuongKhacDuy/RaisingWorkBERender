@@ -82,15 +82,17 @@ const verifyAppleTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: "Unknown product" });
     }
 
+    // Bought for another UUMI account → only movable here if that account was deleted.
     const expectedToken = appleIap.appAccountTokenForUser(userId);
-    if (String(payload.appAccountToken || "").toLowerCase() !== expectedToken) {
+    const transfer = String(payload.appAccountToken || "").toLowerCase() !== expectedToken;
+    if (transfer && !(await appleIap.canTransferToNewOwner(payload, userId))) {
       return res.status(403).json({
         success: false,
         message: "This purchase belongs to a different UUMI account",
       });
     }
 
-    const subscription = await appleIap.recordTransaction(payload, { userId, source: "app" });
+    const subscription = await appleIap.recordTransaction(payload, { userId, source: "app", transfer });
     const state = await appleIap.syncUserPremium(userId);
 
     if (!appleIap.isActive(subscription)) {
@@ -188,7 +190,7 @@ const getEntitlements = async (req, res) => {
     const userId = req.userId; // set by authenticate middleware
 
     const user = await User.findById(userId).select(
-      "isPremium premiumExpiresAt role"
+      "isPremium premiumExpiresAt role appleOriginalTransactionId"
     );
 
     if (!user) {
@@ -220,6 +222,9 @@ const getEntitlements = async (req, res) => {
     return res.status(200).json({
       premium: isStillPremium,
       expirationDate: isStillPremium ? user.premiumExpiresAt?.toISOString() ?? null : null,
+      // Lets the app recognise a subscription transferred from a deleted account
+      // (its appAccountToken still belongs to the old account).
+      appleOriginalTransactionId: isStillPremium ? user.appleOriginalTransactionId ?? null : null,
     });
   } catch (error) {
     console.error("[getEntitlements] Error:", error);

@@ -89,11 +89,11 @@ function effectiveExpiry(sub) {
  * @param {object} payload    verified JWSTransactionDecodedPayload
  * @param {object} options    { userId, source: 'app'|'notification', type, subtype, renewalInfo }
  */
-async function recordTransaction(payload, { userId = null, source, type = null, subtype = null, renewalInfo = null }) {
+async function recordTransaction(payload, { userId = null, source, type = null, subtype = null, renewalInfo = null, transfer = false }) {
     const originalTransactionId = String(payload.originalTransactionId);
     const existing = await AppleSubscription.findOne({ originalTransactionId });
 
-    if (userId && existing?.userId && String(existing.userId) !== String(userId)) {
+    if (!transfer && userId && existing?.userId && String(existing.userId) !== String(userId)) {
         throw new IapError(409, 'This subscription is already linked to another UUMI account');
     }
 
@@ -125,7 +125,7 @@ async function recordTransaction(payload, { userId = null, source, type = null, 
     }
 
     if (payload.appAccountToken) sub.appAccountToken = String(payload.appAccountToken).toLowerCase();
-    if (userId && !sub.userId) sub.userId = userId;
+    if (userId && (!sub.userId || transfer)) sub.userId = userId;
 
     if (renewalInfo) {
         sub.autoRenewStatus = renewalInfo.autoRenewStatus === 1;
@@ -133,7 +133,7 @@ async function recordTransaction(payload, { userId = null, source, type = null, 
     }
 
     const now = new Date();
-    sub.lastEventType = type || (source === 'app' ? 'APP_SUBMIT' : null);
+    sub.lastEventType = type || (transfer ? 'TRANSFERRED' : source === 'app' ? 'APP_SUBMIT' : null);
     sub.lastEventSubtype = subtype;
     sub.lastEventAt = now;
     sub.events.push({
@@ -148,6 +148,28 @@ async function recordTransaction(payload, { userId = null, source, type = null, 
 
     await sub.save();
     return sub;
+}
+
+/**
+ * A subscription bought for another UUMI account (different appAccountToken) may move to a new
+ * account only when its owner no longer exists — e.g. the user deleted account A and signed up as B
+ * with the same Apple ID. While the owner still exists the subscription stays theirs.
+ */
+async function canTransferToNewOwner(payload, userId) {
+    const existing = await AppleSubscription.findOne({ originalTransactionId: String(payload.originalTransactionId) });
+    if (existing) {
+        // Already transferred to this user earlier (renewals keep the old account's token).
+        if (existing.userId && String(existing.userId) === String(userId)) return true;
+        return !existing.userId || !(await User.exists({ _id: existing.userId }));
+    }
+    // Never reached our server. No token = bought before account binding existed → claimable.
+    const token = String(payload.appAccountToken || '').toLowerCase();
+    if (!token) return true;
+    // Owner unknown: claimable only if no existing account derives this token.
+    for await (const user of User.find({}).select('_id').lean().cursor()) {
+        if (appAccountTokenForUser(user._id) === token) return false;
+    }
+    return true;
 }
 
 /**
@@ -190,6 +212,7 @@ module.exports = {
     isPremiumProduct,
     isActive,
     effectiveExpiry,
+    canTransferToNewOwner,
     recordTransaction,
     syncUserPremium,
 };
