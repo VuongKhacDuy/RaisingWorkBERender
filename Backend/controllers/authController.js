@@ -12,6 +12,8 @@ const LeagueGroup = require("../models/Ranking/LeagueGroup");
 const LeagueParticipant = require("../models/Ranking/LeagueParticipant");
 const RankingHistory = require("../models/Ranking/RankingHistory");
 const AIUsage = require("../models/AI/AIUsageModel");
+const WritingSubmission = require("../models/Writing/WritingSubmissionModel");
+const AppleSubscription = require("../models/Premium/AppleSubscriptionModel");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const jwt = require("jsonwebtoken");
@@ -153,6 +155,9 @@ const deleteMyAccount = async (req, res) => {
             LeagueParticipant.deleteMany({ userId }),
             RankingHistory.deleteMany({ userId }),
             AIUsage.deleteMany({ userId }),
+            WritingSubmission.deleteMany({ userId }),
+            // Keep the Apple purchase history (revenue stats) but unlink it from the deleted user
+            AppleSubscription.updateMany({ userId }, { $set: { userId: null } }),
             Post.deleteMany({ user: userId }),
             Post.updateMany(
                 {},
