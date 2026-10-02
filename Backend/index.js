@@ -74,6 +74,8 @@ const jwt = require("jsonwebtoken");
 
 // Serve static files in uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Public legal pages (App Store Connect → Privacy Policy URL)
+app.get('/privacy', (req, res) => res.sendFile(path.join(__dirname, 'public/privacy.html')));
 
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ limit: '10mb', extended: true }))
