@@ -8,7 +8,11 @@ const ALLOWED_COLLECTIONS = [
     'leagueparticipants', 'leaguegroups', 'rankmetrics', 'news',
     'vocabularycollections', 'examquestions', 'examcollections', 'examsections',
     'examcategories', 'series', 'episodes', 'topics', 'achievements',
-    'collectiongroups', 'contentpackages', 'posts'
+    'collectiongroups', 'contentpackages', 'posts',
+    'writingprompts', 'writingrounds', 'writingsubmissions',
+    'aiexplanationcaches', 'aiusages', 'appconfigs', 'applesubscriptions',
+    'grammarcategories', 'grammartopics', 'imagebase64', 'leaguetiers',
+    'storycategories'
 ];
 
 const listCollections = async (req, res) => {
