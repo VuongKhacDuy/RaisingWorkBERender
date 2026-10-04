@@ -1,5 +1,6 @@
 const VocabularyCollection = require('../models/Vocabulary/VocabularyCollectionModel');
 const CollectionGroup = require('../models/Vocabulary/CollectionGroupModel');
+const { userHasPremiumAccess } = require('../utils/premiumAccess');
 
 // ── CMS: Groups CRUD ───────────────────────────────────────────────────────
 exports.listGroups = async (req, res) => {
@@ -335,9 +336,17 @@ exports.listForIOS = async (req, res) => {
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
 
-        const collections = await VocabularyCollection.find({ isActive: true })
+        const rawCollections = await VocabularyCollection.find({ isActive: true })
             .sort({ displayOrder: 1, createdAt: -1 })
             .lean();
+
+        // Premium collections: non-premium users get metadata only (no words)
+        const hasPremium = await userHasPremiumAccess(req);
+        const collections = rawCollections.map((col) => {
+            const wordCount = (col.words || []).length;
+            if (col.isPremium && !hasPremium) return { ...col, words: [], wordCount, locked: true };
+            return { ...col, wordCount };
+        });
 
         const collsByGroup = {};
         const ungrouped = [];
@@ -435,8 +444,12 @@ exports.listUngroupedForIOS = async (req, res) => {
 exports.listWordsForIOS = async (req, res) => {
     try {
         const { collectionId } = req.params;
-        const collection = await VocabularyCollection.findById(collectionId).select('words').lean();
+        const collection = await VocabularyCollection.findById(collectionId).select('words isPremium').lean();
         if (!collection) return res.status(404).json({ message: 'Collection not found.' });
+        // Premium collection + non-premium user → empty list so the app also drops any cached words
+        if (collection.isPremium && !(await userHasPremiumAccess(req))) {
+            return res.json({ data: [], locked: true });
+        }
         res.json({ data: collection.words });
     } catch (err) {
         res.status(500).json({ message: 'Failed to load words.' });
