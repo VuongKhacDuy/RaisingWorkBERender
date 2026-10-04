@@ -1,6 +1,15 @@
 const mongoose = require("mongoose");
 const Topic = require("../models/TopicModel");
 const StoryCategory = require("../models/StoryCategoryModel");
+const { userHasPremiumAccess } = require("../utils/premiumAccess");
+
+// Premium story for a user without premium → preview only: drop the story text and
+// questions, flag `locked` so the app shows the paywall (same idea as News).
+const isPremiumTopic = (doc) => doc?.accessLevel === "premium";
+const toLockedPreview = (doc) => {
+  const { description, exerciseGroups, videoUrl, ...preview } = doc;
+  return { ...preview, locked: true };
+};
 
 // New topics store a plain image URL (pasted in the CMS, like News). Legacy topics
 // hold base64 (with or without a data: prefix) — in list mode those are swapped for
@@ -65,6 +74,10 @@ const prepareTopicBody = (body) => {
     if (Topic.LEVELS.includes(level)) set.level = level;
     else { delete set.level; unset.level = ""; }
   }
+  if ("accessLevel" in body) {
+    if (body.accessLevel === "premium" || body.accessLevel === "free") set.accessLevel = body.accessLevel;
+    else delete set.accessLevel;
+  }
   if ("categoryIds" in body) {
     set.categoryIds = (Array.isArray(body.categoryIds) ? body.categoryIds : [])
       .filter(id => mongoose.isValidObjectId(id));
@@ -80,7 +93,7 @@ const prepareTopicBody = (body) => {
 const POPULAR_SORT = { numbRead: -1, createAt: -1, _id: -1 };
 const NEWEST_SORT = { createAt: -1, _id: -1 };
 // `reference` (author/source) is shown on the Home cards
-const LIST_FIELDS = "_id title subTitle reference imageUrl createAt level categoryIds readingMinutes numbRead";
+const LIST_FIELDS = "_id title subTitle reference imageUrl createAt level categoryIds readingMinutes numbRead accessLevel";
 
 module.exports = {
   createTopic: async (req, res) => {
@@ -109,8 +122,13 @@ module.exports = {
           const docs = await Topic.find().select("-exerciseGroups").sort(NEWEST_SORT).lean();
           return res.status(200).json(docs.map(doc => ({ ...doc, imageUrl: topicImageUrl(req, doc) })));
         }
-        const topic = await Topic.find().sort({ createAt: -1, _id: -1 });
-        return res.status(200).json(topic);
+        // Old app versions (no lock UI): premium text is withheld unless the user has premium
+        const [topics, hasPremium] = await Promise.all([
+          Topic.find().sort({ createAt: -1, _id: -1 }).lean(),
+          userHasPremiumAccess(req),
+        ]);
+        return res.status(200).json(hasPremium ? topics
+          : topics.map(t => (isPremiumTopic(t) ? toLockedPreview(t) : t)));
       }
 
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
@@ -150,17 +168,21 @@ module.exports = {
         }
       }
 
-      const docs = await Topic.find(filters.length ? { $and: filters } : {})
-        .select(LIST_FIELDS)
-        .sort(popular ? POPULAR_SORT : NEWEST_SORT)
-        .skip(offset)
-        .limit(limit + 1)
-        .lean();
+      const [docs, hasPremium] = await Promise.all([
+        Topic.find(filters.length ? { $and: filters } : {})
+          .select(LIST_FIELDS)
+          .sort(popular ? POPULAR_SORT : NEWEST_SORT)
+          .skip(offset)
+          .limit(limit + 1)
+          .lean(),
+        userHasPremiumAccess(req),
+      ]);
 
       const hasMore = docs.length > limit;
       const items = (hasMore ? docs.slice(0, limit) : docs).map(doc => ({
         ...doc,
         imageUrl: topicImageUrl(req, doc),
+        locked: isPremiumTopic(doc) && !hasPremium,
       }));
       const last = items[items.length - 1];
       const nextCursor = !hasMore || !last ? null
@@ -239,9 +261,15 @@ module.exports = {
     }
   },
 
+  // GET /api/topics/:id — full story; premium ones only for premium users (others get
+  // the locked preview). The CMS reads with `?view=cms` (no user token there).
   getTopic: async (req, res) => {
     try {
-      const topic = await Topic.findById(req.params.id);
+      const topic = await Topic.findById(req.params.id).lean();
+      if (!topic) return res.status(404).json("Topic not found");
+      if (isPremiumTopic(topic) && req.query.view !== "cms" && !(await userHasPremiumAccess(req))) {
+        return res.status(200).json(toLockedPreview(topic));
+      }
       res.status(200).json(topic);
     } catch (error) {
       res.status(500).json("failed to get the topic");

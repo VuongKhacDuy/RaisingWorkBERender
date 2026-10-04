@@ -15,6 +15,8 @@ const TopicSchema = new mongoose.Schema({
   categoryIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: "StoryCategory" }], default: [] },
   // Estimated from description word count when the topic is saved
   readingMinutes: { type: Number },
+  // Premium stories: non-premium users only get a preview (no text / questions)
+  accessLevel: { type: String, enum: ["free", "premium"], default: "free" },
   numbLike: {type: Number, default: 0},
   numbRead: {type: Number, default: 0},
   // Comprehension questions shown after the story (multiple-choice / fill-blank / true-false)
