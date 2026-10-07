@@ -113,7 +113,8 @@ const syncUserProgress = async (req, res) => {
             unlockedOutfits, userCharacter, hasCaughtFirstPet,
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
-            reviewStreak, reviewLastReviewDate, reviewSessionRecords
+            reviewStreak, reviewLastReviewDate, reviewSessionRecords,
+            seenPetTemplateIds
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -155,7 +156,11 @@ const syncUserProgress = async (req, res) => {
                     ...(hasCaughtFirstPet === true && { hasCaughtFirstPet: true }),
                     ...(reviewLastReviewDate !== undefined && { reviewLastReviewDate }),
                     ...(Array.isArray(reviewSessionRecords) && { reviewSessionRecords: reviewSessionRecords.slice(-120) }),
-                }
+                },
+                // Union only — a device with a stale list can never erase pets seen elsewhere
+                ...(Array.isArray(seenPetTemplateIds) && seenPetTemplateIds.length > 0 && {
+                    $addToSet: { seenPetTemplateIds: { $each: seenPetTemplateIds.filter(id => typeof id === 'string' && id) } }
+                }),
             },
             { upsert: true, new: true }
         );

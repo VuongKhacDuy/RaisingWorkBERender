@@ -16,6 +16,7 @@ const userProgressSchema = new mongoose.Schema({
     selectedOutfit: { type: String, default: null },
     unlockedOutfits: { type: [String], default: [] },
     hasCaughtFirstPet: { type: Boolean, default: false },
+    seenPetTemplateIds: { type: [String], default: [] }, // Pet Dex: templates the user has met in the wild
     smallPotionCount: { type: Number, default: 0 },
     mediumPotionCount: { type: Number, default: 0 },
     largePotionCount: { type: Number, default: 0 },
