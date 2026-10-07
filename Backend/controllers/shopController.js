@@ -201,14 +201,23 @@ exports.purchaseProduct = async (req, res) => {
             return res.status(400).json({ message: 'Not enough coins.' });
         }
 
-        progress.totalCoins -= totalPrice;
         const grantedQuantity = product.quantity * purchaseQuantity;
-
+        const isPetBag = product.itemType === 'pet_bag_expansion';
         const inventoryField = shopInventoryFields[product.itemType];
-        if (!inventoryField) {
+        if (!isPetBag && !inventoryField) {
             return res.status(400).json({ message: 'This product type is not supported yet.' });
         }
-        progress[inventoryField] = (progress[inventoryField] || 0) + grantedQuantity;
+        if (isPetBag && !(product.effectValue > 0)) {
+            return res.status(400).json({ message: 'Pet bag item has no slots configured.' });
+        }
+
+        progress.totalCoins -= totalPrice;
+        if (isPetBag) {
+            // effectValue = extra slots per bag
+            progress.petBagBonusSlots = (progress.petBagBonusSlots || 0) + Math.floor(product.effectValue) * grantedQuantity;
+        } else {
+            progress[inventoryField] = (progress[inventoryField] || 0) + grantedQuantity;
+        }
 
         await progress.save();
 
@@ -228,6 +237,7 @@ exports.purchaseProduct = async (req, res) => {
                 purchasedQuantity: purchaseQuantity,
                 grantedQuantity,
                 totalCoins: progress.totalCoins,
+                petBagBonusSlots: progress.petBagBonusSlots || 0,
                 ...mapInventoryCounts(progress)
             }
         });

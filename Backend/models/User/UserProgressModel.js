@@ -17,6 +17,7 @@ const userProgressSchema = new mongoose.Schema({
     unlockedOutfits: { type: [String], default: [] },
     hasCaughtFirstPet: { type: Boolean, default: false },
     seenPetTemplateIds: { type: [String], default: [] }, // Pet Dex: templates the user has met in the wild
+    petBagBonusSlots: { type: Number, default: 0, min: 0 }, // Extra pet bag slots bought in the shop (base capacity 20)
     smallPotionCount: { type: Number, default: 0 },
     mediumPotionCount: { type: Number, default: 0 },
     largePotionCount: { type: Number, default: 0 },
