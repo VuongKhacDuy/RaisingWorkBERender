@@ -43,6 +43,12 @@ const getAllPetTemplates = async (req, res) => {
             filter.updatedAt = { $gt: new Date(req.query.since) };
         }
 
+        // Lightweight id list so clients can drop templates deleted on the server
+        if (req.query.idsOnly === 'true') {
+            const ids = await PetTemplate.find(filter).distinct('_id');
+            return res.status(200).json({ data: ids.map(String), total: ids.length });
+        }
+
         const isSpawnQuery = req.query.spawn === 'true';
 
         if (req.query.habitat) {
