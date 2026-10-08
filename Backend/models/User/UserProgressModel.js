@@ -31,6 +31,12 @@ const userProgressSchema = new mongoose.Schema({
     reviveSmallCount: { type: Number, default: 0 },
     reviveMediumCount: { type: Number, default: 0 },
     reviveFullCount: { type: Number, default: 0 },
+    // Thuốc tuổi thọ (+5 / +10 / +20 / +50 ngày / hồi đầy)
+    lifespan5Count: { type: Number, default: 0 },
+    lifespan10Count: { type: Number, default: 0 },
+    lifespan20Count: { type: Number, default: 0 },
+    lifespan50Count: { type: Number, default: 0 },
+    lifespanFullCount: { type: Number, default: 0 },
     reviewStreak: { type: Number, default: 0 },
     reviewLastReviewDate: { type: Date, default: null },
     reviewSessionRecords: {

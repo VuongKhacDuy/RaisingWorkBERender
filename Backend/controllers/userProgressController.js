@@ -114,6 +114,7 @@ const syncUserProgress = async (req, res) => {
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
             reviveSmallCount, reviveMediumCount, reviveFullCount,
+            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount,
             reviewStreak, reviewLastReviewDate, reviewSessionRecords,
             seenPetTemplateIds
         } = req.body;
@@ -124,7 +125,8 @@ const syncUserProgress = async (req, res) => {
         for (const [key, value] of Object.entries({
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
-            reviveSmallCount, reviveMediumCount, reviveFullCount
+            reviveSmallCount, reviveMediumCount, reviveFullCount,
+            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount
         })) {
             if (Number.isFinite(value)) inventoryCounts[key] = Math.max(0, Math.floor(value));
         }

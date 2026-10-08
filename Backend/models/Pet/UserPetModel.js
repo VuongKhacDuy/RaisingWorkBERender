@@ -42,6 +42,12 @@ const userPetSchema = new mongoose.Schema({
     // Thời điểm bắt được
     caughtAt: { type: Date, default: Date.now },
 
+    // Tuổi thọ (ngày): max được gieo lúc bắt, remaining giảm 1/ngày, hồi bằng thuốc tuổi thọ.
+    // lifespanMax = 0 → pet cũ chưa được gán (app sẽ gieo rồi đồng bộ lên)
+    lifespanMax: { type: Number, default: 0, min: 0 },
+    lifespanRemaining: { type: Number, default: 0, min: 0 },
+    lifespanUpdatedAt: { type: Date, default: null }, // ngày đã trừ tuổi thọ gần nhất
+
 }, { timestamps: true });
 
 // Index để truy vấn nhanh theo userId

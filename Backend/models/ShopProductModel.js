@@ -16,7 +16,8 @@ const shopProductSchema = new mongoose.Schema({
             'small_mana_potion', 'medium_mana_potion', 'large_mana_potion', 'super_mana_potion', 'full_mana_potion',
             'revive_small', 'revive_medium', 'revive_full',
             'mana_potion', 'think_time_booster', 'enemy_time_trap', 'power_booster', 'defense_booster', 'xp_booster', 'coin_charm',
-            'pet_bag_expansion'
+            'pet_bag_expansion',
+            'lifespan_5', 'lifespan_10', 'lifespan_20', 'lifespan_50', 'lifespan_full'
         ],
         required: true
     },
@@ -24,13 +25,13 @@ const shopProductSchema = new mongoose.Schema({
     priceCoins: { type: Number, required: true, min: 0 },
     effectType: {
         type: String,
-        enum: ['heal_hp', 'restore_mana', 'revive', 'add_think_time', 'reduce_enemy_think_time', 'boost_power', 'boost_defense', 'boost_xp', 'boost_coin', 'expand_pet_bag'],
+        enum: ['heal_hp', 'restore_mana', 'revive', 'add_think_time', 'reduce_enemy_think_time', 'boost_power', 'boost_defense', 'boost_xp', 'boost_coin', 'expand_pet_bag', 'restore_lifespan'],
         default: 'heal_hp'
     },
     effectValue: { type: Number, default: 30, min: 0 },
     effectUnit: {
         type: String,
-        enum: ['percent', 'points', 'seconds', 'slots'],
+        enum: ['percent', 'points', 'seconds', 'slots', 'days'],
         default: 'percent'
     },
     durationSeconds: { type: Number, default: 0, min: 0 },

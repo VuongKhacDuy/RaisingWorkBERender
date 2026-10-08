@@ -105,6 +105,9 @@ const petTemplateSchema = new mongoose.Schema({
     // Wild encounter level range (app also caps it at player level + 15). null max = maxLevel
     appearLevelMin: { type: Number, default: 1, min: 1 },
     appearLevelMax: { type: Number, default: null, min: 1 },
+    // Lifespan range in days; each wild pet rolls its own max lifespan in [min, max] (null → lifespan)
+    lifespanMin: { type: Number, default: null, min: 1 },
+    lifespanMax: { type: Number, default: null, min: 1 },
 
     // Danh sách skill
     skills: { type: [skillSchema], default: [] },

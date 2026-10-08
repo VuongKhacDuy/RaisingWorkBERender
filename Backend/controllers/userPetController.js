@@ -12,6 +12,13 @@ const calcStat = (base, level) => Math.round(base + base * 0.1 * (level - 1));
 // Helper: roll số ngẫu nhiên trong khoảng [min, max]
 const rollIV = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+// Chỉ lấy các field tuổi thọ App gửi lên (bỏ qua field không có để không ghi đè)
+const lifespanFields = ({ lifespanMax, lifespanRemaining, lifespanUpdatedAt }) => ({
+    ...(Number.isFinite(lifespanMax) && lifespanMax >= 0 && { lifespanMax }),
+    ...(Number.isFinite(lifespanRemaining) && lifespanRemaining >= 0 && { lifespanRemaining }),
+    ...(lifespanUpdatedAt && { lifespanUpdatedAt: new Date(lifespanUpdatedAt) }),
+});
+
 // XP cần để level up lên level tiếp theo
 const xpRequiredForLevelUp = (level) => Math.floor(100 * Math.pow(level, 1.5));
 
@@ -21,7 +28,8 @@ const xpRequiredForLevelUp = (level) => Math.floor(100 * Math.pow(level, 1.5));
 // ──────────────────────────────────────────────────────────────
 const catchPet = async (req, res) => {
     try {
-        const { petTemplateId, instanceId, baseHp, baseMana, basePower, baseDefense, baseSpeed, catchConfirmed } = req.body;
+        const { petTemplateId, instanceId, baseHp, baseMana, basePower, baseDefense, baseSpeed, catchConfirmed,
+            lifespanMax, lifespanRemaining, lifespanUpdatedAt } = req.body;
         if (!petTemplateId) {
             return res.status(400).json({ message: "Thiếu petTemplateId." });
         }
@@ -68,6 +76,8 @@ const catchPet = async (req, res) => {
             power: calcStat(individualBasePower, level),
             defense: calcStat(individualBaseDefense, level),
             speed: calcStat(individualBaseSpeed, level),
+
+            ...lifespanFields({ lifespanMax, lifespanRemaining, lifespanUpdatedAt }),
         });
 
         await newPet.save();
@@ -308,6 +318,7 @@ const syncPets = async (req, res) => {
                 userPet.isActive = isActive !== undefined ? isActive : userPet.isActive;
                 userPet.nickname = nickname || userPet.nickname;
                 userPet.evolutionStage = evolutionStage !== undefined ? evolutionStage : userPet.evolutionStage;
+                Object.assign(userPet, lifespanFields(petData));
                 await userPet.save();
             } else {
                 // Create
@@ -341,7 +352,9 @@ const syncPets = async (req, res) => {
                     speed: speed || calcStat(bSpeed, level),
 
                     isActive: isActive || false,
-                    nickname: nickname || ''
+                    nickname: nickname || '',
+
+                    ...lifespanFields(petData),
                 });
                 await userPet.save();
             }
