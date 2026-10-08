@@ -1,5 +1,26 @@
 const PetTemplate = require("../models/Pet/PetTemplateModel");
 
+// Each base stat has an IV range wild pets roll in: ±20% of the base.
+// Recomputed whenever a base changes so the range never goes stale after an edit.
+const STAT_RANGES = [
+    ["baseHp", "minHP", "maxHP"],
+    ["baseMana", "minMana", "maxMana"],
+    ["basePower", "minPower", "maxPower"],
+    ["baseDefense", "minDefense", "maxDefense"],
+    ["baseSpeed", "minSpeed", "maxSpeed"],
+];
+
+const withStatRanges = (data) => {
+    const result = { ...data };
+    for (const [baseKey, minKey, maxKey] of STAT_RANGES) {
+        const base = Number(result[baseKey]);
+        if (!Number.isFinite(base) || base <= 0) continue;
+        result[minKey] = Math.max(1, Math.floor(base * 0.8));
+        result[maxKey] = Math.max(result[minKey], Math.floor(base * 1.2));
+    }
+    return result;
+};
+
 // ──────────────────────────────────────────────────────────────
 // POST /api/pets/templates — Tạo pet template mới (admin)
 // ──────────────────────────────────────────────────────────────
@@ -8,7 +29,7 @@ const createPetTemplate = async (req, res) => {
         const { name } = req.body;
         if (!name) return res.status(400).json({ message: "Thiếu tên pet." });
 
-        const updateData = { ...req.body };
+        const updateData = withStatRanges(req.body);
 
         // Sử dụng findOneAndUpdate với upsert: true để tránh tạo trùng tên
         const pet = await PetTemplate.findOneAndUpdate(
@@ -100,7 +121,7 @@ const updatePetTemplate = async (req, res) => {
     try {
         const updated = await PetTemplate.findByIdAndUpdate(
             req.params.id,
-            { $set: req.body },
+            { $set: withStatRanges(req.body) },
             { new: true, runValidators: true }
         );
         if (!updated) return res.status(404).json({ message: "Không tìm thấy pet template." });
