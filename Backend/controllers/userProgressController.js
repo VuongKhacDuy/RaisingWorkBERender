@@ -113,11 +113,21 @@ const syncUserProgress = async (req, res) => {
             unlockedOutfits, userCharacter, hasCaughtFirstPet,
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
+            reviveSmallCount, reviveMediumCount, reviveFullCount,
             reviewStreak, reviewLastReviewDate, reviewSessionRecords,
             seenPetTemplateIds
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
+
+        const inventoryCounts = {};
+        for (const [key, value] of Object.entries({
+            smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
+            smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
+            reviveSmallCount, reviveMediumCount, reviveFullCount
+        })) {
+            if (Number.isFinite(value)) inventoryCounts[key] = Math.max(0, Math.floor(value));
+        }
 
         const oldProgress = await UserProgress.findOne({ userId });
         const oldUnlocked = oldProgress ? (oldProgress.unlockedMascots || []) : [];
@@ -132,19 +142,12 @@ const syncUserProgress = async (req, res) => {
                     ...(totalXP !== undefined && { totalXP }),
                     ...(totalCoins !== undefined && { totalCoins }),
                     ...(level !== undefined && { level }),
-                    ...(smallPotionCount !== undefined && { smallPotionCount }),
-                    ...(mediumPotionCount !== undefined && { mediumPotionCount }),
-                    ...(largePotionCount !== undefined && { largePotionCount }),
-                    ...(superPotionCount !== undefined && { superPotionCount }),
-                    ...(fullPotionCount !== undefined && { fullPotionCount }),
-                    ...(smallManaPotionCount !== undefined && { smallManaPotionCount }),
-                    ...(mediumManaPotionCount !== undefined && { mediumManaPotionCount }),
-                    ...(largeManaPotionCount !== undefined && { largeManaPotionCount }),
-                    ...(superManaPotionCount !== undefined && { superManaPotionCount }),
-                    ...(fullManaPotionCount !== undefined && { fullManaPotionCount }),
                     ...(reviewStreak !== undefined && { reviewStreak }),
                 },
                 $set: {
+                    // Inventory counts go down when items are used, so $max would resurrect used items.
+                    // Purchases/grants are server-side and the client pulls before it pushes.
+                    ...inventoryCounts,
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
                     ...(lastLoginDate !== undefined && { lastLoginDate }),
                     ...(lastLearnDate !== undefined && { lastLearnDate }),
