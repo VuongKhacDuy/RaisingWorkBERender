@@ -102,6 +102,9 @@ const petTemplateSchema = new mongoose.Schema({
 
     // Tỉ lệ bắt (0.0 – 1.0)
     catchRate: { type: Number, default: 0.5, min: 0, max: 1 },
+    // Wild encounter level range (app also caps it at player level + 15). null max = maxLevel
+    appearLevelMin: { type: Number, default: 1, min: 1 },
+    appearLevelMax: { type: Number, default: null, min: 1 },
 
     // Danh sách skill
     skills: { type: [skillSchema], default: [] },
