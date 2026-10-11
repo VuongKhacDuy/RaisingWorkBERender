@@ -40,7 +40,8 @@ const shopInventoryFields = {
     lifespan_10: 'lifespan10Count',
     lifespan_20: 'lifespan20Count',
     lifespan_50: 'lifespan50Count',
-    lifespan_full: 'lifespanFullCount'
+    lifespan_full: 'lifespanFullCount',
+    evolution_stone: 'evolutionStoneCount'
 };
 
 const mapInventoryCounts = (progress) => Object.fromEntries(
