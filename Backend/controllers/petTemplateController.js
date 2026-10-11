@@ -64,6 +64,15 @@ const getAllPetTemplates = async (req, res) => {
             filter.updatedAt = { $gt: new Date(req.query.since) };
         }
 
+        // Name list without images (CMS pickers, evolution chains)
+        if (req.query.summary === 'true') {
+            const pets = await PetTemplate.find(filter)
+                .select('_id name quality evolvesTo evolveLevel')
+                .sort({ name: 1 })
+                .lean();
+            return res.status(200).json({ data: pets, total: pets.length });
+        }
+
         // Lightweight id list so clients can drop templates deleted on the server
         if (req.query.idsOnly === 'true') {
             const ids = await PetTemplate.find(filter).distinct('_id');

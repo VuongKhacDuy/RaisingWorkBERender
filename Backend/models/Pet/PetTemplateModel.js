@@ -108,6 +108,9 @@ const petTemplateSchema = new mongoose.Schema({
     // Lifespan range in days; each wild pet rolls its own max lifespan in [min, max] (null → lifespan)
     lifespanMin: { type: Number, default: null, min: 1 },
     lifespanMax: { type: Number, default: null, min: 1 },
+    // Evolution: on reaching evolveLevel the pet becomes the evolvesTo species (keeps level, XP, IV quality)
+    evolvesTo: { type: mongoose.Schema.Types.ObjectId, ref: "PetTemplate", default: null },
+    evolveLevel: { type: Number, default: null, min: 2 },
 
     // Danh sách skill
     skills: { type: [skillSchema], default: [] },
