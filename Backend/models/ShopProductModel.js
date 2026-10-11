@@ -36,6 +36,7 @@ const shopProductSchema = new mongoose.Schema({
         default: 'percent'
     },
     durationSeconds: { type: Number, default: 0, min: 0 },
+    stoneType: { type: String, default: 'generic' }, // evolution_stone only: which stone this sells
     iconName: { type: String, default: 'cross.case.fill' },
     imageUrl: { type: String, default: '' },
     isActive: { type: Boolean, default: true },

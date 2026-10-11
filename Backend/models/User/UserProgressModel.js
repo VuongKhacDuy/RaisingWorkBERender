@@ -37,7 +37,8 @@ const userProgressSchema = new mongoose.Schema({
     lifespan20Count: { type: Number, default: 0 },
     lifespan50Count: { type: Number, default: 0 },
     lifespanFullCount: { type: Number, default: 0 },
-    evolutionStoneCount: { type: Number, default: 0 }, // 1 stone per evolution
+    evolutionStoneCount: { type: Number, default: 0 }, // legacy generic stones (moved into evolutionStones)
+    evolutionStones: { type: Map, of: Number, default: {} }, // stoneType → count; 1 stone per evolution step
     reviewStreak: { type: Number, default: 0 },
     reviewLastReviewDate: { type: Date, default: null },
     reviewSessionRecords: {

@@ -108,7 +108,18 @@ const petTemplateSchema = new mongoose.Schema({
     // Lifespan range in days; each wild pet rolls its own max lifespan in [min, max] (null → lifespan)
     lifespanMin: { type: Number, default: null, min: 1 },
     lifespanMax: { type: Number, default: null, min: 1 },
-    // Evolution: on reaching evolveLevel the pet becomes the evolvesTo species (keeps level, XP, IV quality)
+    // Evolution branches: at evolveLevel, using one stoneType stone, the pet becomes evolvesTo
+    // (keeps level, XP, IV quality). Several entries = branching evolution.
+    evolutions: {
+        type: [{
+            _id: false,
+            evolvesTo: { type: mongoose.Schema.Types.ObjectId, ref: "PetTemplate", required: true },
+            evolveLevel: { type: Number, required: true, min: 2 },
+            stoneType: { type: String, default: "generic" }, // generic | fire | water | grass | electric | dark | light | earth | ice | wind | poison
+        }],
+        default: [],
+    },
+    // Legacy single evolution (read only when `evolutions` is empty)
     evolvesTo: { type: mongoose.Schema.Types.ObjectId, ref: "PetTemplate", default: null },
     evolveLevel: { type: Number, default: null, min: 2 },
 

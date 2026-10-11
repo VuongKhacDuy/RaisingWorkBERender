@@ -40,9 +40,10 @@ const shopInventoryFields = {
     lifespan_10: 'lifespan10Count',
     lifespan_20: 'lifespan20Count',
     lifespan_50: 'lifespan50Count',
-    lifespan_full: 'lifespanFullCount',
-    evolution_stone: 'evolutionStoneCount'
+    lifespan_full: 'lifespanFullCount'
 };
+
+const stonesObject = (progress) => Object.fromEntries(progress.evolutionStones || []);
 
 const mapInventoryCounts = (progress) => Object.fromEntries(
     Object.values(shopInventoryFields).map((field) => [field, progress[field] || 0])
@@ -209,8 +210,9 @@ exports.purchaseProduct = async (req, res) => {
 
         const grantedQuantity = product.quantity * purchaseQuantity;
         const isPetBag = product.itemType === 'pet_bag_expansion';
+        const isStone = product.itemType === 'evolution_stone';
         const inventoryField = shopInventoryFields[product.itemType];
-        if (!isPetBag && !inventoryField) {
+        if (!isPetBag && !isStone && !inventoryField) {
             return res.status(400).json({ message: 'This product type is not supported yet.' });
         }
         if (isPetBag && !(product.effectValue > 0)) {
@@ -221,6 +223,10 @@ exports.purchaseProduct = async (req, res) => {
         if (isPetBag) {
             // effectValue = extra slots per bag
             progress.petBagBonusSlots = (progress.petBagBonusSlots || 0) + Math.floor(product.effectValue) * grantedQuantity;
+        } else if (isStone) {
+            const stoneType = product.stoneType || 'generic';
+            if (!progress.evolutionStones) progress.evolutionStones = new Map();
+            progress.evolutionStones.set(stoneType, (progress.evolutionStones.get(stoneType) || 0) + grantedQuantity);
         } else {
             progress[inventoryField] = (progress[inventoryField] || 0) + grantedQuantity;
         }
@@ -244,6 +250,7 @@ exports.purchaseProduct = async (req, res) => {
                 grantedQuantity,
                 totalCoins: progress.totalCoins,
                 petBagBonusSlots: progress.petBagBonusSlots || 0,
+                evolutionStones: stonesObject(progress),
                 ...mapInventoryCounts(progress)
             }
         });

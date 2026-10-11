@@ -94,6 +94,14 @@ const getUserProgress = async (req, res) => {
             await progress.save();
         }
 
+        // One-time move of legacy generic stones into the per-type map
+        if (progress.evolutionStoneCount > 0) {
+            if (!progress.evolutionStones) progress.evolutionStones = new Map();
+            progress.evolutionStones.set('generic', (progress.evolutionStones.get('generic') || 0) + progress.evolutionStoneCount);
+            progress.evolutionStoneCount = 0;
+            await progress.save();
+        }
+
         res.status(200).json({ data: progress });
     } catch (error) {
         console.error('[UserProgress] fetch error:', error);
@@ -114,9 +122,9 @@ const syncUserProgress = async (req, res) => {
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
             reviveSmallCount, reviveMediumCount, reviveFullCount,
-            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount, evolutionStoneCount,
+            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount,
             reviewStreak, reviewLastReviewDate, reviewSessionRecords,
-            seenPetTemplateIds
+            seenPetTemplateIds, evolutionStones
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
@@ -126,7 +134,7 @@ const syncUserProgress = async (req, res) => {
             smallPotionCount, mediumPotionCount, largePotionCount, superPotionCount, fullPotionCount,
             smallManaPotionCount, mediumManaPotionCount, largeManaPotionCount, superManaPotionCount, fullManaPotionCount,
             reviveSmallCount, reviveMediumCount, reviveFullCount,
-            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount, evolutionStoneCount
+            lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount
         })) {
             if (Number.isFinite(value)) inventoryCounts[key] = Math.max(0, Math.floor(value));
         }
@@ -150,6 +158,14 @@ const syncUserProgress = async (req, res) => {
                     // Inventory counts go down when items are used, so $max would resurrect used items.
                     // Purchases/grants are server-side and the client pulls before it pushes.
                     ...inventoryCounts,
+                    // Stones per type (used ones go down, so $set like the other counts)
+                    ...(evolutionStones && typeof evolutionStones === 'object' && {
+                        evolutionStones: Object.fromEntries(
+                            Object.entries(evolutionStones)
+                                .filter(([, v]) => Number.isFinite(v))
+                                .map(([k, v]) => [k, Math.max(0, Math.floor(v))])
+                        ),
+                    }),
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
                     ...(lastLoginDate !== undefined && { lastLoginDate }),
                     ...(lastLearnDate !== undefined && { lastLearnDate }),

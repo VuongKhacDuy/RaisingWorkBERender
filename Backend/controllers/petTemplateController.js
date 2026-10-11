@@ -67,7 +67,7 @@ const getAllPetTemplates = async (req, res) => {
         // Name list without images (CMS pickers, evolution chains)
         if (req.query.summary === 'true') {
             const pets = await PetTemplate.find(filter)
-                .select('_id name quality evolvesTo evolveLevel')
+                .select('_id name quality evolvesTo evolveLevel evolutions')
                 .sort({ name: 1 })
                 .lean();
             return res.status(200).json({ data: pets, total: pets.length });
