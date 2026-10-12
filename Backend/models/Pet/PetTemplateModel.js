@@ -131,6 +131,14 @@ const petTemplateSchema = new mongoose.Schema({
         }],
         default: [],
     },
+    // Extra conditions for a wild pet to appear (all optional, combined with habitat rates / appear levels)
+    spawnConditions: {
+        timeOfDay: { type: String, enum: ["any", "day", "night"], default: "any" }, // day = 6:00–17:59 device time
+        weathers: { type: [String], default: [] },   // area weather must be one of these (admin weather); empty = any
+        weekdays: { type: [Number], default: [] },   // ISO 1 = Mon … 7 = Sun; empty = every day
+        startDate: { type: Date, default: null },    // event window; null = no limit
+        endDate: { type: Date, default: null },
+    },
     // Legacy single evolution (read only when `evolutions` is empty)
     evolvesTo: { type: mongoose.Schema.Types.ObjectId, ref: "PetTemplate", default: null },
     evolveLevel: { type: Number, default: null, min: 2 },
