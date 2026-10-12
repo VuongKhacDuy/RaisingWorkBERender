@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const PetTemplate = require("../models/Pet/PetTemplateModel");
 const { ALLOWED_FOLDERS, uploadBuffer, sniffImage, slugify } = require("../services/supabaseStorage");
 
@@ -97,4 +98,93 @@ const migratePetImages = async (req, res) => {
     }
 };
 
-module.exports = { uploadMedia, migratePetImages };
+// ── Signed links → public links (whole database) ──────────────────────────────
+// Links copied from the Supabase dashboard are signed (…/object/sign/<bucket>/<path>?token=…) and expire.
+// The bucket is public now, so the same file is reachable forever at …/object/public/<bucket>/<path>.
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Matches signed links of our bucket only (other buckets may be private). */
+const signedUrlRegex = () => {
+    const bucket = process.env.SUPABASE_BUCKET || "";
+    if (!bucket) throw new Error("Supabase storage chưa cấu hình (SUPABASE_BUCKET).");
+    return new RegExp(`(https?://[^\\s"'()<>]+?/storage/v1/object/)sign/(${escapeRegExp(bucket)}/[^?\\s"'()<>]+)\\?token=[^\\s"'()<>]*`, "g");
+};
+
+/** Expiry of a signed link, from its token (JWT) — null if unreadable. */
+const tokenExpiry = (link) => {
+    try {
+        const token = new URL(link).searchParams.get("token");
+        const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+        return payload.exp ? new Date(payload.exp * 1000) : null;
+    } catch {
+        return null;
+    }
+};
+
+/** Walks a document; every string holding signed links → { path (dot notation), value, links }. */
+const findSignedStrings = (value, regex, path = "", found = []) => {
+    if (typeof value === "string") {
+        regex.lastIndex = 0;
+        const links = value.match(regex);
+        if (links) found.push({ path, value: value.replace(regex, "$1public/$2"), links });
+    } else if (Array.isArray(value)) {
+        value.forEach((item, index) => findSignedStrings(item, regex, path ? `${path}.${index}` : `${index}`, found));
+    } else if (value && typeof value === "object" && !(value instanceof Date) && !(value instanceof mongoose.Types.ObjectId) && !Buffer.isBuffer(value) && value._bsontype === undefined) {
+        for (const [key, child] of Object.entries(value)) {
+            if (path === "" && key === "_id") continue;
+            findSignedStrings(child, regex, path ? `${path}.${key}` : key, found);
+        }
+    }
+    return found;
+};
+
+// POST /api/media/migrate-signed-urls { apply: false }
+// Scans every collection; dry run reports how many signed links each one has (+ earliest expiry),
+// apply: true rewrites them to public links in place. Safe to re-run.
+const migrateSignedUrls = async (req, res) => {
+    try {
+        const apply = req.body?.apply === true;
+        const regex = signedUrlRegex();
+        const db = mongoose.connection.db;
+        const collections = (await db.listCollections({}, { nameOnly: true }).toArray())
+            .map((c) => c.name)
+            .filter((name) => !name.startsWith("system."));
+
+        const report = [];
+        for (const name of collections) {
+            const collection = db.collection(name);
+            let documents = 0;
+            let links = 0;
+            let earliest = null;
+            for await (const doc of collection.find({})) {
+                const fields = findSignedStrings(doc, regex);
+                if (fields.length === 0) continue;
+                documents += 1;
+                for (const field of fields) {
+                    links += field.links.length;
+                    for (const link of field.links) {
+                        const expiry = tokenExpiry(link);
+                        if (expiry && (!earliest || expiry < earliest)) earliest = expiry;
+                    }
+                }
+                if (apply) {
+                    const update = Object.fromEntries(fields.map((f) => [f.path, f.value]));
+                    await collection.updateOne({ _id: doc._id }, { $set: update });
+                }
+            }
+            if (documents > 0) report.push({ collection: name, documents, links, earliestExpiry: earliest });
+        }
+
+        res.status(200).json({
+            dryRun: !apply,
+            collections: report,
+            totalLinks: report.reduce((sum, c) => sum + c.links, 0),
+        });
+    } catch (err) {
+        console.error("migrateSignedUrls error:", err);
+        res.status(500).json({ message: err.message || "Chuyển link Supabase thất bại." });
+    }
+};
+
+module.exports = { uploadMedia, migratePetImages, migrateSignedUrls };
