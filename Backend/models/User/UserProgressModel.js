@@ -39,6 +39,7 @@ const userProgressSchema = new mongoose.Schema({
     lifespanFullCount: { type: Number, default: 0 },
     evolutionStoneCount: { type: Number, default: 0 }, // legacy generic stones (moved into evolutionStones)
     evolutionStones: { type: Map, of: Number, default: {} }, // stoneType → count; 1 stone per evolution step
+    evolutionMaterials: { type: Map, of: Number, default: {} }, // element → essence count (from releasing pets)
     reviewStreak: { type: Number, default: 0 },
     reviewLastReviewDate: { type: Date, default: null },
     reviewSessionRecords: {

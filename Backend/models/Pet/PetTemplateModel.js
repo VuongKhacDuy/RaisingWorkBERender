@@ -108,14 +108,26 @@ const petTemplateSchema = new mongoose.Schema({
     // Lifespan range in days; each wild pet rolls its own max lifespan in [min, max] (null → lifespan)
     lifespanMin: { type: Number, default: null, min: 1 },
     lifespanMax: { type: Number, default: null, min: 1 },
-    // Evolution branches: at evolveLevel, using one stoneType stone, the pet becomes evolvesTo
+    // Evolution branches: at evolveLevel, meeting every condition of the branch, the pet becomes evolvesTo
     // (keeps level, XP, IV quality). Several entries = branching evolution.
     evolutions: {
         type: [{
             _id: false,
             evolvesTo: { type: mongoose.Schema.Types.ObjectId, ref: "PetTemplate", required: true },
             evolveLevel: { type: Number, required: true, min: 2 },
-            stoneType: { type: String, default: "generic" }, // generic | fire | water | grass | electric | dark | light | earth | ice | wind | poison
+            stoneType: { type: String, default: "generic" }, // none | generic | fire | water | grass | electric | dark | light | earth | ice | wind | poison
+            // Element essences consumed on evolving (from releasing pets)
+            materials: {
+                type: [{ _id: false, element: { type: String, required: true }, amount: { type: Number, required: true, min: 1 } }],
+                default: [],
+            },
+            timeOfDay: { type: String, enum: ["any", "day", "night"], default: "any" }, // day = 6:00–17:59 device time
+            lifeStage: { type: String, enum: ["any", "young", "adult", "old"], default: "any" },
+            // Admin-run weather (WeatherEvent) that must be active; habitat "any" = in any area
+            weather: {
+                habitat: { type: String, default: "any" },
+                type: { type: String, default: "any" },
+            },
         }],
         default: [],
     },

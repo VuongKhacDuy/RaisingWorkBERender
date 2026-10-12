@@ -16,6 +16,7 @@ const mapProduct = (product) => ({
     effectValue: product.effectValue,
     effectUnit: product.effectUnit,
     durationSeconds: product.durationSeconds,
+    stoneType: product.stoneType || 'generic',
     iconName: product.iconName,
     imageUrl: product.imageUrl,
     isActive: product.isActive,

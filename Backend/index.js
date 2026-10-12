@@ -48,6 +48,7 @@ const masterVocabularyRouter = require('./routes/masterVocabularyRoute');
 const rankingRouter = require('./routes/rankingRoute');
 const premiumRouter = require('./routes/premiumRoute');
 const shopRouter = require('./routes/shopRoute');
+const weatherRouter = require('./routes/weatherRoute');
 const cmsAccountRouter = require('./routes/cmsAccountRoute');
 const cmsCollectionRouter = require('./routes/cmsCollectionRoute');
 const dbManagerRouter = require('./routes/dbManagerRoute');
@@ -101,6 +102,7 @@ app.use('/api/master-vocabulary', masterVocabularyRouter);
 app.use('/api/vocabulary/master', masterVocabularyRouter); // Alias for iOS app
 app.use('/api/leaderboard', rankingRouter);
 app.use('/api/shop', shopRouter);
+app.use('/api/weather', weatherRouter);
 app.use('/api/cms', cmsAccountRouter);
 app.use('/api/cms', cmsCollectionRouter);
 app.use('/api/cms/db', dbManagerRouter);

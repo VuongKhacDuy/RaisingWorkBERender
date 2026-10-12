@@ -124,10 +124,17 @@ const syncUserProgress = async (req, res) => {
             reviveSmallCount, reviveMediumCount, reviveFullCount,
             lifespan5Count, lifespan10Count, lifespan20Count, lifespan50Count, lifespanFullCount,
             reviewStreak, reviewLastReviewDate, reviewSessionRecords,
-            seenPetTemplateIds, evolutionStones
+            seenPetTemplateIds, evolutionStones, evolutionMaterials
         } = req.body;
 
         console.log(`[UserProgress] Syncing for User: ${userId}`);
+
+        // Map<string, number> from the client → clean non-negative integers
+        const countMap = (value) => Object.fromEntries(
+            Object.entries(value)
+                .filter(([, v]) => Number.isFinite(v))
+                .map(([k, v]) => [k, Math.max(0, Math.floor(v))])
+        );
 
         const inventoryCounts = {};
         for (const [key, value] of Object.entries({
@@ -158,14 +165,9 @@ const syncUserProgress = async (req, res) => {
                     // Inventory counts go down when items are used, so $max would resurrect used items.
                     // Purchases/grants are server-side and the client pulls before it pushes.
                     ...inventoryCounts,
-                    // Stones per type (used ones go down, so $set like the other counts)
-                    ...(evolutionStones && typeof evolutionStones === 'object' && {
-                        evolutionStones: Object.fromEntries(
-                            Object.entries(evolutionStones)
-                                .filter(([, v]) => Number.isFinite(v))
-                                .map(([k, v]) => [k, Math.max(0, Math.floor(v))])
-                        ),
-                    }),
+                    // Stones / essences per type (used ones go down, so $set like the other counts)
+                    ...(evolutionStones && typeof evolutionStones === 'object' && { evolutionStones: countMap(evolutionStones) }),
+                    ...(evolutionMaterials && typeof evolutionMaterials === 'object' && { evolutionMaterials: countMap(evolutionMaterials) }),
                     ...(lastActivityDate !== undefined && { lastActivityDate }),
                     ...(lastLoginDate !== undefined && { lastLoginDate }),
                     ...(lastLearnDate !== undefined && { lastLearnDate }),
