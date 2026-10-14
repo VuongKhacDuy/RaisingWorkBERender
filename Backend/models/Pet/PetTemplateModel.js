@@ -108,6 +108,8 @@ const petTemplateSchema = new mongoose.Schema({
     // Lifespan range in days; each wild pet rolls its own max lifespan in [min, max] (null → lifespan)
     lifespanMin: { type: Number, default: null, min: 1 },
     lifespanMax: { type: Number, default: null, min: 1 },
+    // Real-world size relative to other pets (1 = normal); used where pets stand next to the character / each other
+    displayScale: { type: Number, default: 1, min: 0.3, max: 3 },
     // Evolution branches: at evolveLevel, meeting every condition of the branch, the pet becomes evolvesTo
     // (keeps level, XP, IV quality). Several entries = branching evolution.
     evolutions: {
